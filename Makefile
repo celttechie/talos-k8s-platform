@@ -15,6 +15,8 @@ TALOS_DIR   := talos
 GITOPS_DIR  := gitops
 SCRIPTS_DIR := scripts
 
+-include target.env
+
 # Colors
 BLUE   := \033[36m
 GREEN  := \033[32m
@@ -22,7 +24,7 @@ YELLOW := \033[33m
 RED    := \033[31m
 RESET  := \033[0m
 
-##@ 📖 Help & Diagnostics
+##@ 📖 Setup, Diagnostics & Quality Gates
 
 .PHONY: help
 help: ## Display this interactive help menu
@@ -32,9 +34,24 @@ help: ## Display this interactive help menu
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 	@echo ""
 
+.PHONY: configure
+configure: ## Interactive wizard to define, verify, and persist target deployment server
+	@python3 $(SCRIPTS_DIR)/configure.py
+
+TARGET_HOST ?= $(if $(TARGET_HOST),$(TARGET_HOST),t5600)
+
 .PHONY: doctor
-doctor: ## Audit local workstation prerequisites, binaries, and configurations
+doctor: ## Audit local workstation developer tools, CLI binaries, and git hooks
 	@python3 $(SCRIPTS_DIR)/doctor.py
+
+.PHONY: preflight
+preflight: ## Validate target hypervisor server (KVM, libvirtd, storage pools, bridges)
+	@python3 $(SCRIPTS_DIR)/preflight_server.py --host $(TARGET_HOST)
+
+.PHONY: check-all
+check-all: ## Execute both workstation doctor and target server preflight audits
+	@$(MAKE) doctor
+	@$(MAKE) preflight
 
 ##@ 🏗️ Stage 1: Nested Sandbox Hypervisor (01-nested-sandbox)
 
@@ -52,6 +69,11 @@ stage1-plan: ## Generate and review execution plan for Stage 1
 stage1-apply: ## Provision Stage 1 Nested Sandbox VM hypervisor
 	@echo -e "$(GREEN)===> Applying Stage 1 Nested Sandbox infrastructure...$(RESET)"
 	terraform -chdir=$(STAGE1_DIR) apply
+
+.PHONY: verify-stage1
+verify-stage1: ## Run automated verification checks on Stage 1 sandbox hypervisor
+	@echo -e "$(GREEN)===> Running Stage 1 verification test suite...$(RESET)"
+	@python3 $(SCRIPTS_DIR)/verify_stage1.py
 
 .PHONY: stage1-destroy
 stage1-destroy: ## Destroy Stage 1 Nested Sandbox infrastructure
@@ -75,10 +97,22 @@ stage2-apply: ## Provision Stage 2 Talos Control Plane & Worker VMs
 	@echo -e "$(GREEN)===> Applying Stage 2 Talos Cluster infrastructure...$(RESET)"
 	terraform -chdir=$(STAGE2_DIR) apply
 
+.PHONY: verify-stage2
+verify-stage2: ## Run automated verification checks on Stage 2 Talos VMs
+	@echo -e "$(GREEN)===> Running Stage 2 verification test suite...$(RESET)"
+	@python3 $(SCRIPTS_DIR)/verify_stage2.py
+
 .PHONY: stage2-destroy
 stage2-destroy: ## Destroy Stage 2 Talos Cluster infrastructure
 	@echo -e "$(YELLOW)===> Destroying Stage 2 Talos Cluster infrastructure...$(RESET)"
 	terraform -chdir=$(STAGE2_DIR) destroy
+
+.PHONY: test-m1
+test-m1: ## Execute full Milestone 1 validation and verification test suite
+	@echo -e "$(GREEN)===> Running Milestone 1 Test Suite...$(RESET)"
+	@$(MAKE) fmt
+	@$(MAKE) verify-stage1
+	@$(MAKE) verify-stage2
 
 ##@ ⚙️ Stage 3: Talos OS & Kubernetes Bootstrapping
 

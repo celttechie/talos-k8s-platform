@@ -1,5 +1,9 @@
 # Developer & Workflow Guide
 
+> [!WARNING]
+> **Project Status: Alpha / Active Early Development**
+> This repository is in active alpha development with minimal testing. APIs, module structures, and scripts are under rapid iteration.
+
 This guide establishes the local development workflow, quality assurance standards, environment diagnostics, and step-by-step commands for the **Talos Kubernetes Platform**.
 
 ---
