@@ -1,5 +1,16 @@
 # Talos Kubernetes Platform on Nested Libvirt / KVM
 
+[![Status](https://img.shields.io/badge/status-alpha%20%2F%20experimental-orange.svg)](#)
+[![Stage](https://img.shields.io/badge/stage-milestone%201%20active-blue.svg)](#)
+[![Kubernetes](https://img.shields.io/badge/kubernetes-v1.31+-326ce5.svg?logo=kubernetes&logoColor=white)](#)
+[![Talos Linux](https://img.shields.io/badge/talos-v1.8+-black.svg?logo=linux&logoColor=white)](#)
+
+> [!WARNING]
+> **Project Status: Alpha / Active Early Development**
+> This repository is in its initial alpha development phase with minimal to initial testing. Architecture patterns, Terraform modules, and platform configurations are undergoing rapid development and subject to breaking changes. This repository is currently intended for experimentation, research, and homelab prototyping.
+
+---
+
 An enterprise-grade, immutable Kubernetes platform provisioned on local hypervisor infrastructure (Dell Precision T5600) using **Talos Linux**, **Cilium eBPF CNI**, **Longhorn Distributed Storage**, and **ArgoCD GitOps**.
 
 ---
@@ -51,7 +62,15 @@ flowchart TD
 ```
 .
 ├── PLAN.md                             # Architectural Blueprint & Implementation Plan
+├── DEVELOPMENT.md                      # Developer workflows, diagnostics, and quality gates
 ├── Makefile                            # Unified workflow automation
+├── target.env.example                  # Deployment target environment template
+├── scripts/
+│   ├── configure.py                    # Target onboarding & verification wizard (make configure)
+│   ├── doctor.py                       # Workstation developer tool diagnostics (make doctor)
+│   ├── preflight_server.py             # Hypervisor preflight validator (make preflight)
+│   ├── verify_stage1.py                # Automated Stage 1 sandbox hypervisor verification
+│   └── verify_stage2.py                # Automated Stage 2 Talos VM cluster verification
 ├── terraform/
 │   ├── modules/
 │   │   └── libvirt_talos_node/         # Reusable Talos VM Libvirt module
@@ -72,33 +91,44 @@ flowchart TD
 
 ## 🚀 Quick Start Guide
 
-### Prerequisites
-Ensure your local workstation has the required control tools installed:
-- `terraform` / `tofu` ($\ge$ 1.5.0)
-- `talosctl` ($\ge$ 1.8.0)
-- `kubectl` ($\ge$ 1.30.0)
-- `helm` ($\ge$ 3.14.0)
-
-### Deployment Stages
+### 1. Workstation & Target Server Diagnostics
 
 ```bash
-# 1. Provision Stage 1: Nested Sandbox Hypervisor
+# 1. Audit your local workstation toolchain (Terraform, kubectl, talosctl, etc.)
+make doctor
+
+# 2. Configure and verify your target server credentials & storage pools
+make configure
+
+# 3. Run target hypervisor pre-flight checks (KVM, libvirtd, storage pools, bridges)
+make preflight
+```
+
+### 2. Multi-Stage Deployment
+
+```bash
+# Provision Stage 1: Nested Sandbox Hypervisor (L1 VM)
 make stage1-init
 make stage1-apply
+make verify-stage1
 
-# 2. Provision Stage 2: Talos Control Plane & Worker VMs
+# Provision Stage 2: Downstream Talos Nodes (L2 VMs)
 make stage2-init
 make stage2-apply
+make verify-stage2
 
-# 3. Bootstrap Talos Cluster & Extract Kubeconfig
+# Bootstrap Talos OS Control Plane
+make talos-gen-config
 make talos-bootstrap
 make talos-kubeconfig
+make talos-health
 
-# 4. Deploy Cilium CNI (eBPF)
+# Deploy Platform Services
 make cilium-install
 make cilium-verify
+make longhorn-install
 
-# 5. Bootstrap ArgoCD GitOps
+# Bootstrap ArgoCD Continuous Delivery
 make gitops-bootstrap
 ```
 
@@ -106,4 +136,6 @@ make gitops-bootstrap
 
 ## 📖 Detailed Documentation
 * **[Implementation Plan & Architecture](PLAN.md)**
+* **[Developer & Workflow Guide](DEVELOPMENT.md)**
+* **[Architecture Decision Records (ADRs)](docs/adr/)**
 * **[Disaster Recovery & Failure Drills](docs/03-disaster-recovery-drills.md)**
