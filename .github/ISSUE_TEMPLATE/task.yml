@@ -1,0 +1,19 @@
+name: Implementation Task
+description: Track a planned milestone implementation task or drill
+title: "task: "
+labels: ["type:task"]
+body:
+  - type: textarea
+    id: scope
+    attributes:
+      label: Task Scope & Objectives
+      description: Describe what needs to be implemented or tested.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Bulleted list of verification steps or automated assertions.
+    validations:
+      required: true

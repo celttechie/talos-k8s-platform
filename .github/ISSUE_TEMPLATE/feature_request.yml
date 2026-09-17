@@ -1,0 +1,29 @@
+name: Feature Request
+description: Propose a new platform feature or infrastructure module
+title: "feat: "
+labels: ["type:feature"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thank you for proposing an enhancement to the Talos Kubernetes Platform!"
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: What challenge or architecture goal does this feature address?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the technical implementation strategy and relevant components.
+    validations:
+      required: true
+  - type: checkboxes
+    id: adr_check
+    attributes:
+      label: Architecture Governance
+      options:
+        - label: "This feature requires an Architecture Decision Record (ADR) in `docs/adr/`"
+          required: false
