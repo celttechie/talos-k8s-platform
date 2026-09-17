@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Talos Kubernetes Platform - Environment Doctor
-Assesses the local workstation development environment, CLI tooling prerequisites,
-versions, and security configurations.
+Talos Kubernetes Platform - Workstation Environment Doctor
+Assesses local workstation development tools, CLI binaries, versions, and git quality gates.
 """
 
+import json
 import os
 import shutil
 import subprocess
@@ -19,8 +19,8 @@ RESET = "\033[0m"
 
 CHECKS = []
 
-def check_item(name, command, min_version=None, required=True, purpose=""):
-    """Check if a CLI tool is installed and optionally verify version."""
+def check_local_item(name, command, min_version=None, required=True, purpose=""):
+    """Check if a local CLI tool is installed and optionally verify version."""
     path = shutil.which(command.split()[0])
     if not path:
         status = f"{RED}MISSING{RESET}" if required else f"{YELLOW}OPTIONAL (NOT FOUND){RESET}"
@@ -37,7 +37,7 @@ def check_item(name, command, min_version=None, required=True, purpose=""):
         CHECKS.append((name, True, status, purpose))
 
 def check_gh_auth():
-    """Check if GitHub CLI is authenticated."""
+    """Check if GitHub CLI is authenticated on local workstation."""
     path = shutil.which("gh")
     if not path:
         CHECKS.append(("GitHub CLI Auth", False, f"{RED}gh CLI missing{RESET}", "Repo & Project Management"))
@@ -64,34 +64,31 @@ def main():
     print(f"{BLUE}{BOLD}     Talos Kubernetes Platform - Workstation Environment Doctor               {RESET}")
     print(f"{BLUE}{BOLD}=============================================================================={RESET}\n")
 
-    # Required Core Tools
-    check_item("Terraform / OpenTofu", "terraform version", required=True, purpose="Infrastructure as Code")
-    check_item("Talos CLI (talosctl)", "talosctl version --client --short", required=True, purpose="Talos API & Node Management")
-    check_item("Kubernetes CLI (kubectl)", "kubectl version --client -o yaml | grep gitVersion", required=True, purpose="Cluster Operations")
-    check_item("Helm CLI", "helm version --short", required=True, purpose="Package & Chart Management")
-    check_item("Cilium CLI", "cilium version --client", required=False, purpose="eBPF CNI & Hubble Diagnostics")
-    check_item("Pre-Commit", "pre-commit --version", required=True, purpose="Git Code Quality Hooks")
-    check_item("GitHub CLI (gh)", "gh --version", required=True, purpose="Issue & Milestone Tracking")
-    check_item("Python 3", "python3 --version", required=True, purpose="Automation & Verification Scripts")
-
-    # Auth & Hooks
+    check_local_item("Terraform / OpenTofu", "terraform version", required=True, purpose="Infrastructure as Code")
+    check_local_item("Talos CLI (talosctl)", "talosctl version --client --short", required=True, purpose="Talos API & Node Management")
+    check_local_item("Kubernetes CLI (kubectl)", "kubectl version --client -o yaml | grep gitVersion", required=True, purpose="Cluster Operations")
+    check_local_item("Helm CLI", "helm version --short", required=True, purpose="Package & Chart Management")
+    check_local_item("Cilium CLI", "cilium version --client", required=False, purpose="eBPF CNI & Hubble Diagnostics")
+    check_local_item("Pre-Commit", "pre-commit --version", required=True, purpose="Git Code Quality Hooks")
+    check_local_item("GitHub CLI (gh)", "gh --version", required=True, purpose="Issue & Milestone Tracking")
+    check_local_item("Python 3", "python3 --version", required=True, purpose="Automation & Verification Scripts")
     check_gh_auth()
     check_pre_commit()
 
     all_passed = True
-    print(f"{BOLD}{'Tool / Check':<28} {'Status':<40} {'Purpose'}{RESET}")
+    print(f"{BOLD}{'Tool / Check':<32} {'Status':<36} {'Purpose'}{RESET}")
     print("-" * 80)
     for name, ok, status, purpose in CHECKS:
         if not ok:
             all_passed = False
-        print(f"{name:<28} {status:<40} {purpose}")
+        print(f"{name:<32} {status:<36} {purpose}")
 
     print("\n" + "-" * 80)
     if all_passed:
-        print(f"{GREEN}{BOLD}🎉 All critical environment prerequisites are satisfied! Ready to build.{RESET}\n")
+        print(f"{GREEN}{BOLD}🎉 Workstation client environment is 100% ready for platform development!{RESET}\n")
         return 0
     else:
-        print(f"{YELLOW}{BOLD}⚠️  Some prerequisites are missing or require attention before proceeding.{RESET}\n")
+        print(f"{YELLOW}{BOLD}⚠️  Some workstation prerequisites require attention (see above).{RESET}\n")
         return 1
 
 if __name__ == "__main__":
