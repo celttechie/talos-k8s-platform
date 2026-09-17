@@ -1,0 +1,51 @@
+# Prerequisites & Secret Credentials
+*.kubeconfig
+kubeconfig
+kubeconfig*
+talosconfig
+talosconfig*
+*.key
+*.pem
+*.crt
+*.pfx
+*.age
+*.sops.yaml
+secrets.yaml
+*.env
+*.env.*
+!*.env.example
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+!example.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log
+
+# Disk Images & Local Storage Cache
+*.qcow2
+*.raw
+*.raw.zst
+*.iso
+*.img
+*.vmdk
+/cache/
+/images/
+/tmp/
+
+# OS and Editor artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
