@@ -1,8 +1,8 @@
 # Developer & Workflow Guide
 
 > [!NOTE]
-> **Project Status: Implementation Complete / Active Verification**
-> All core platform components (M1–M6) are fully implemented. The repository is actively running validation suites, preflight diagnostics, and troubleshooting drill verifications.
+> **Project Status: Beta (Feature Complete / In Verification)**
+> All core platform components (M1–M6) are fully implemented. The repository is actively in testing, preflight diagnostics, and troubleshooting drill verification.
 
 This guide establishes the local development workflow, quality assurance standards, environment diagnostics, and step-by-step commands for the **Talos Kubernetes Platform**.
 
