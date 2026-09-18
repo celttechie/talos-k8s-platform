@@ -1,0 +1,6 @@
+# Talos patch to mount secondary virtual disk for Longhorn dynamic storage
+machine:
+  disks:
+    - device: /dev/vdb
+      partitions:
+        - mountpoint: /var/lib/longhorn

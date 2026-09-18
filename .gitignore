@@ -11,9 +11,14 @@ talosconfig*
 *.age
 *.sops.yaml
 secrets.yaml
+talos/secrets.yaml
+talos/controlplane.yaml
+talos/worker.yaml
+talos/talosconfig
 *.env
 *.env.*
 !*.env.example
+
 
 # Terraform
 **/.terraform/*
