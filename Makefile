@@ -158,6 +158,57 @@ longhorn-install: ## Deploy Longhorn distributed block storage
 		--namespace longhorn-system --create-namespace \
 		-f $(GITOPS_DIR)/platform/longhorn/values.yaml
 
+##@ 📊 Observability & Monitoring (Prometheus, Grafana & Hubble)
+
+.PHONY: monitoring-install
+monitoring-install: ## Deploy kube-prometheus-stack (Prometheus & Grafana)
+	@echo -e "$(GREEN)===> Deploying kube-prometheus-stack...$(RESET)"
+	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
+	helm repo update prometheus-community
+	helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+		--namespace monitoring --create-namespace \
+		-f $(GITOPS_DIR)/platform/monitoring/kube-prometheus-stack.yaml
+
+.PHONY: hubble-ui
+hubble-ui: ## Port-forward and open Cilium Hubble UI (http://localhost:12000)
+	@echo -e "$(GREEN)===> Port-forwarding Hubble UI to http://localhost:12000...$(RESET)"
+	cilium hubble ui --port 12000
+
+.PHONY: grafana
+grafana: ## Port-forward Grafana dashboard to http://localhost:3000 (admin / prom-operator)
+	@echo -e "$(GREEN)===> Port-forwarding Grafana to http://localhost:3000...$(RESET)"
+	kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
+
+##@ 🧪 Training Workload & Troubleshooting Drills
+
+.PHONY: workload-install
+workload-install: ## Deploy multi-tier communicating training application
+	@echo -e "$(GREEN)===> Deploying training workload microservices...$(RESET)"
+	kubectl apply -k $(GITOPS_DIR)/apps/training-app
+
+.PHONY: workload-destroy
+workload-destroy: ## Delete training workload microservices
+	@echo -e "$(YELLOW)===> Deleting training workload microservices...$(RESET)"
+	kubectl delete -k $(GITOPS_DIR)/apps/training-app --ignore-not-found
+
+SCENARIO ?=
+
+.PHONY: drill-list
+drill-list: ## Display catalog of all available troubleshooting drills
+	@python3 $(SCRIPTS_DIR)/drill_manager.py --list
+
+.PHONY: drill-inject
+drill-inject: ## Inject a specific failure scenario (usage: make drill-inject SCENARIO=<id>)
+	@python3 $(SCRIPTS_DIR)/drill_manager.py --inject $(SCENARIO)
+
+.PHONY: drill-verify
+drill-verify: ## Verify symptoms of an active scenario (usage: make drill-verify SCENARIO=<id>)
+	@python3 $(SCRIPTS_DIR)/drill_manager.py --verify $(SCENARIO)
+
+.PHONY: drill-heal
+drill-heal: ## Restore healthy state (usage: make drill-heal SCENARIO=<id> or SCENARIO=all)
+	@python3 $(SCRIPTS_DIR)/drill_manager.py --heal $(if $(SCENARIO),$(SCENARIO),all)
+
 ##@ 🔄 Stage 5: GitOps Delivery (ArgoCD & Workloads)
 
 .PHONY: gitops-bootstrap
@@ -184,3 +235,4 @@ clean: ## Clean up temporary files, caches, and test artifacts
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	find . -type f -name ".terraform.tfstate.lock.info" -delete 2>/dev/null || true
 	@echo -e "$(GREEN)Clean complete.$(RESET)"
+

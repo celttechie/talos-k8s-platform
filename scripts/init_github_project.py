@@ -7,6 +7,19 @@ import subprocess
 import sys
 import json
 
+LABELS = [
+    {"name": "area:infra", "description": "Infrastructure, KVM, & Libvirt", "color": "0E8A16"},
+    {"name": "area:talos", "description": "Talos OS & Machine Configs", "color": "1D76DB"},
+    {"name": "area:networking", "description": "Cilium CNI & Hubble eBPF", "color": "5319E7"},
+    {"name": "area:storage", "description": "Longhorn CSI Distributed Storage", "color": "D93F0B"},
+    {"name": "area:observability", "description": "Prometheus, Grafana & Metrics", "color": "E99695"},
+    {"name": "area:compute", "description": "Compute, Pod Scheduling & Resources", "color": "006B75"},
+    {"name": "area:gitops", "description": "ArgoCD & Continuous Delivery", "color": "0052CC"},
+    {"name": "type:feature", "description": "New platform feature", "color": "A2EEEF"},
+    {"name": "type:task", "description": "Implementation task", "color": "BFD4F2"},
+    {"name": "type:drill", "description": "Operational or failure injection drill", "color": "FBCA04"},
+]
+
 MILESTONES = [
     {
         "title": "M1: Foundation & Virtualization (Stages 1 & 2)",
@@ -22,11 +35,15 @@ MILESTONES = [
     },
     {
         "title": "M4: GitOps & Workload Delivery",
-        "description": "ArgoCD root App-of-Apps, External Secrets Operator, and CloudNativePG HA Postgres cluster."
+        "description": "ArgoCD root App-of-Apps, External Secrets Operator, and communicating training microservices."
     },
     {
-        "title": "M5: Operational Drills & Failure Testing",
-        "description": "Node drain, rolling reboots, volume snapshot recovery drills, and disaster recovery runbooks."
+        "title": "M5: Troubleshooting Drills & Diagnostic Lab",
+        "description": "Drill manager CLI, automated fault injection across Compute/Network/Storage/RBAC, and 4-phase diagnostic runbooks."
+    },
+    {
+        "title": "M6: Observability Platform (Prometheus & Grafana)",
+        "description": "Deploy kube-prometheus-stack, Alertmanager, and Grafana dashboards for compute, eBPF, and CSI metrics."
     }
 ]
 
@@ -110,19 +127,51 @@ ISSUES = [
         "labels": ["area:gitops", "type:feature"],
         "body": "### Scope\n- Deploy CloudNativePG operator.\n- Create a 2-instance PostgreSQL cluster with pod anti-affinity.\n\n### Acceptance Criteria\n- [ ] Primary and replica pods scheduled on separate worker VMs."
     },
+    {
+        "title": "feat(apps): Deploy multi-tier communicating microservices training application",
+        "milestone": "M4: GitOps & Workload Delivery",
+        "labels": ["area:gitops", "type:feature"],
+        "body": "### Scope\n- Deploy multi-tier communicating application in `training` namespace.\n- Configure frontend, order-api, redis-cache, postgres-db, and queue-worker.\n\n### Acceptance Criteria\n- [ ] `make workload-install` deploys all microservice components."
+    },
 
     # M5
     {
+        "title": "feat(drills): Implement Drill Manager CLI for automated failure injection and healing",
+        "milestone": "M5: Troubleshooting Drills & Diagnostic Lab",
+        "labels": ["type:drill", "area:compute", "area:networking", "area:storage"],
+        "body": "### Scope\n- Develop `scripts/drill_manager.py` CLI supporting `--list`, `--inject`, `--verify`, and `--heal`.\n\n### Acceptance Criteria\n- [ ] `make drill-list` displays all scenarios."
+    },
+    {
+        "title": "docs(drills): Author guided 4-phase troubleshooting runbooks for cluster failure scenarios",
+        "milestone": "M5: Troubleshooting Drills & Diagnostic Lab",
+        "labels": ["documentation", "type:drill"],
+        "body": "### Scope\n- Establish standardized 4-Phase Diagnostic Framework (Detect -> Isolate -> Root Cause -> Remediate).\n\n### Acceptance Criteria\n- [ ] Runbooks for compute, networking, and storage in `docs/troubleshooting-drills/`."
+    },
+    {
         "title": "test(drills): Execute node drain, rolling reboot, and failover validation",
-        "milestone": "M5: Operational Drills & Failure Testing",
+        "milestone": "M5: Troubleshooting Drills & Diagnostic Lab",
         "labels": ["type:drill"],
         "body": "### Scope\n- Execute `kubectl cordon` & `kubectl drain` on `talos-worker-01`.\n- Validate database failover and zero-downtime workload migration.\n\n### Acceptance Criteria\n- [ ] Document drill results in `docs/03-disaster-recovery-drills.md`."
     },
     {
         "title": "test(drills): Perform volume snapshot corruption and restore drill",
-        "milestone": "M5: Operational Drills & Failure Testing",
+        "milestone": "M5: Troubleshooting Drills & Diagnostic Lab",
         "labels": ["type:drill", "area:storage"],
         "body": "### Scope\n- Take Longhorn VolumeSnapshot of Postgres database.\n- Simulate data corruption and restore volume from snapshot.\n\n### Acceptance Criteria\n- [ ] Data verified intact after snapshot restoration."
+    },
+
+    # M6
+    {
+        "title": "feat(observability): Deploy Prometheus Operator and kube-prometheus-stack",
+        "milestone": "M6: Observability Platform (Prometheus & Grafana)",
+        "labels": ["area:observability", "type:feature"],
+        "body": "### Scope\n- Configure and deploy `kube-prometheus-stack` via Helm in `monitoring` namespace.\n\n### Acceptance Criteria\n- [ ] `make monitoring-install` deploys without errors."
+    },
+    {
+        "title": "feat(observability): Preconfigure Grafana dashboards for Compute, eBPF CNI, and CSI Storage",
+        "milestone": "M6: Observability Platform (Prometheus & Grafana)",
+        "labels": ["area:observability", "type:feature"],
+        "body": "### Scope\n- Curate Grafana dashboards for Compute, Cilium eBPF packet drops, and Longhorn dynamic PVC metrics.\n\n### Acceptance Criteria\n- [ ] Dashboards load metrics automatically upon Grafana login."
     }
 ]
 
@@ -133,7 +182,12 @@ def run_cmd(cmd):
     return res
 
 def main():
-    print("Creating Milestones...")
+    print("Ensuring Labels...")
+    for label in LABELS:
+        cmd = f"gh label create \"{label['name']}\" --description \"{label['description']}\" --color \"{label['color']}\" --force"
+        run_cmd(cmd)
+
+    print("\nCreating / Verifying Milestones...")
     milestone_map = {}
     for m in MILESTONES:
         cmd = f"gh api repos/:owner/:repo/milestones -f title=\"{m['title']}\" -f description=\"{m['description']}\""
@@ -141,7 +195,7 @@ def main():
         if res.returncode == 0:
             data = json.loads(res.stdout)
             milestone_map[m["title"]] = data.get("number")
-            print(f"  ✓ Milestone created: {m['title']} (#{data.get('number')})")
+            print(f"  ✓ Milestone synced: {m['title']} (#{data.get('number')})")
 
     # If milestones already exist, fetch them
     if not milestone_map:
@@ -159,9 +213,10 @@ def main():
         cmd = f"gh issue create --title \"{issue['title']}\" --body \"{issue['body']}\" --label \"{labels_arg}\" {m_arg}"
         res = run_cmd(cmd)
         if res.returncode == 0:
-            print(f"  ✓ Issue created: {issue['title']}")
+            print(f"  ✓ Issue synced: {issue['title']}")
 
-    print("\n🎉 GitHub Project Management initialization complete!")
+    print("\n🎉 GitHub Project Management synchronization complete!")
 
 if __name__ == "__main__":
     main()
+

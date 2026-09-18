@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: training
+
+commonLabels:
+  app.kubernetes.io/part-of: training-workload
+
+resources:
+  - base/namespace.yaml
+  - base/database-postgres.yaml
+  - base/cache-redis.yaml
+  - base/order-api.yaml
+  - base/frontend.yaml
+  - base/queue-worker.yaml
+  - base/network-policies.yaml
