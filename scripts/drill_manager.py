@@ -5,17 +5,18 @@ Injects, verifies, and heals common cluster and workload failures for hands-on l
 """
 
 import argparse
-import subprocess
 import sys
 import time
 
-# ANSI colors for rich CLI output
-GREEN = "\033[92m"
-YELLOW = "\033[93m"
-RED = "\033[91m"
-BLUE = "\033[94m"
-BOLD = "\033[1m"
-RESET = "\033[0m"
+from common import (
+    BLUE,
+    BOLD,
+    GREEN,
+    RED,
+    RESET,
+    YELLOW,
+    run_cmd,
+)
 
 SCENARIOS = {
     "comp-oom-killed": {
@@ -144,8 +145,7 @@ EOF"""
 }
 
 
-def run_cmd(cmd: str, check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, shell=True, text=True, capture_output=True)
+
 
 
 def list_drills():
