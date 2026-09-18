@@ -194,13 +194,16 @@ test-m3: ## Execute full Milestone 3 validation and verification test suite
 ##@ 📊 Observability & Monitoring (Prometheus, Grafana & Hubble)
 
 .PHONY: monitoring-install
-monitoring-install: ## Deploy kube-prometheus-stack (Prometheus & Grafana)
+monitoring-install: ## Deploy kube-prometheus-stack, Alert Rules & Grafana Dashboards
 	@echo -e "$(GREEN)===> Deploying kube-prometheus-stack...$(RESET)"
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
 	helm repo update prometheus-community
 	helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
 		--namespace monitoring --create-namespace \
 		-f $(GITOPS_DIR)/platform/monitoring/kube-prometheus-stack.yaml
+	@echo -e "$(GREEN)===> Applying lab alert rules & Grafana Dashboards...$(RESET)"
+	kubectl apply -f $(GITOPS_DIR)/platform/monitoring/alert-rules.yaml --namespace monitoring
+	kubectl apply -f $(GITOPS_DIR)/platform/monitoring/dashboards/ --namespace monitoring
 
 .PHONY: hubble-ui
 hubble-ui: ## Port-forward and open Cilium Hubble UI (http://localhost:12000)
@@ -211,6 +214,17 @@ hubble-ui: ## Port-forward and open Cilium Hubble UI (http://localhost:12000)
 grafana: ## Port-forward Grafana dashboard to http://localhost:3000 (admin / prom-operator)
 	@echo -e "$(GREEN)===> Port-forwarding Grafana to http://localhost:3000...$(RESET)"
 	kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
+
+.PHONY: verify-stage6
+verify-stage6: ## Run automated verification checks on Stage 6 Observability Stack
+	@echo -e "$(GREEN)===> Running Stage 6 verification test suite...$(RESET)"
+	@python3 $(SCRIPTS_DIR)/verify_stage6.py
+
+.PHONY: test-m6
+test-m6: ## Execute full Milestone 6 validation and verification test suite
+	@echo -e "$(GREEN)===> Running Milestone 6 Test Suite...$(RESET)"
+	@$(MAKE) verify-stage6
+
 
 ##@ 🧪 Training Workload & Troubleshooting Drills
 
