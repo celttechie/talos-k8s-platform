@@ -244,10 +244,39 @@ drill-heal: ## Restore healthy state (usage: make drill-heal SCENARIO=<id> or SC
 
 ##@ 🔄 Stage 5: GitOps Delivery (ArgoCD & Workloads)
 
+.PHONY: argocd-install
+argocd-install: ## Deploy ArgoCD GitOps controller via Helm
+	@echo -e "$(GREEN)===> Deploying ArgoCD via Helm...$(RESET)"
+	helm repo add argo https://argoproj.github.io/argo-helm 2>/dev/null || true
+	helm repo update argo
+	helm upgrade --install argocd argo/argo-cd --version 7.6.8 \
+		--namespace argocd --create-namespace \
+		-f $(GITOPS_DIR)/platform/argocd/values.yaml
+
+.PHONY: external-secrets-install
+external-secrets-install: ## Deploy External Secrets Operator via Helm
+	@echo -e "$(GREEN)===> Deploying External Secrets Operator...$(RESET)"
+	helm repo add external-secrets https://charts.external-secrets.io 2>/dev/null || true
+	helm repo update external-secrets
+	helm upgrade --install external-secrets external-secrets/external-secrets --version 0.10.4 \
+		--namespace external-secrets --create-namespace \
+		-f $(GITOPS_DIR)/platform/external-secrets/values.yaml
+
 .PHONY: gitops-bootstrap
 gitops-bootstrap: ## Apply ArgoCD Root Application (App-of-Apps)
 	@echo -e "$(GREEN)===> Bootstrapping ArgoCD Root App-of-Apps...$(RESET)"
 	kubectl apply -f $(GITOPS_DIR)/bootstrap/root-application.yaml
+
+.PHONY: verify-stage5
+verify-stage5: ## Run automated verification checks on Stage 5 GitOps and Workloads
+	@echo -e "$(GREEN)===> Running Stage 5 verification test suite...$(RESET)"
+	@python3 $(SCRIPTS_DIR)/verify_stage5.py
+
+.PHONY: test-m4
+test-m4: ## Execute full Milestone 4 validation and verification test suite
+	@echo -e "$(GREEN)===> Running Milestone 4 Test Suite...$(RESET)"
+	@$(MAKE) verify-stage5
+
 
 ##@ 🧹 Code Quality, Linting & Pre-commit
 

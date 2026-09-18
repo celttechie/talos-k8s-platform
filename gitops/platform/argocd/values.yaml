@@ -1,0 +1,32 @@
+# ArgoCD GitOps Controller Configuration
+global:
+  domain: argocd.local
+
+server:
+  service:
+    type: ClusterIP
+  extraArgs:
+    - --insecure
+
+configs:
+  params:
+    server.insecure: true
+
+repoServer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+applicationSet:
+  replicas: 1
+
+dex:
+  enabled: false
+
+notifications:
+  enabled: false
