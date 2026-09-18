@@ -1,6 +1,6 @@
 # Talos Kubernetes Platform & Troubleshooting Lab
 
-[![Status](https://img.shields.io/badge/status-active%20verification-brightgreen.svg)](#)
+[![Status](https://img.shields.io/badge/status-beta%20(feature%20complete)-blue.svg)](#)
 [![Milestones](https://img.shields.io/badge/milestones-M1%E2%80%93M6%20Complete-brightgreen.svg)](#)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-v1.31+-326ce5.svg?logo=kubernetes&logoColor=white)](#)
 [![Talos Linux](https://img.shields.io/badge/talos-v1.8+-black.svg?logo=linux&logoColor=white)](#)
