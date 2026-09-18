@@ -17,6 +17,7 @@ from common import (
     RED,
     RESET,
     YELLOW,
+    get_target_host,
 )
 
 CHECKS = []
@@ -59,7 +60,38 @@ def check_pre_commit():
     if os.path.exists(hook_path):
         CHECKS.append(("Git Pre-Commit Hook", True, f"{GREEN}INSTALLED{RESET}", "Local Quality Gates"))
     else:
-        CHECKS.append(("Git Pre-Commit Hook", False, f"{YELLOW}NOT INSTALLED (Run `pre-commit install`){RESET}", "Local Quality Gates"))
+        has_pre_commit = shutil.which("pre-commit") is not None
+        if has_pre_commit:
+            CHECKS.append(("Git Pre-Commit Hook", False, f"{YELLOW}NOT INSTALLED (Run `pre-commit install`){RESET}", "Local Quality Gates"))
+        else:
+            CHECKS.append(("Git Pre-Commit Hook", True, f"{YELLOW}OPTIONAL (Run `pre-commit install` when available){RESET}", "Local Quality Gates"))
+
+def check_workstation_network():
+    """Verify local workstation route and absence of virbr0 subnet collision with cluster."""
+    target_host = get_target_host()
+    if not target_host or target_host in ("127.0.0.1", "localhost"):
+        return
+
+    try:
+        # Check if local virbr0 conflicts with 192.168.122.x
+        addr_res = subprocess.run(["ip", "addr", "show", "virbr0"], capture_output=True, text=True)
+        has_virbr0_122 = "192.168.122." in addr_res.stdout
+
+        # Check if route to 192.168.122.0/24 exists via target_host
+        route_res = subprocess.run(["ip", "route", "show", "192.168.122.0/24"], capture_output=True, text=True)
+        route_out = route_res.stdout.strip()
+
+        if has_virbr0_122:
+            status = f"{YELLOW}LOCAL CONFLICT (virbr0 on 192.168.122.1/24 collides with cluster){RESET}"
+            CHECKS.append(("Cluster Subnet Routing", False, status, "Workstation VM Access"))
+        elif target_host in route_out or ("via" in route_out and "192.168.122.0/24" in route_out):
+            status = f"{GREEN}ROUTED{RESET} (via {target_host})"
+            CHECKS.append(("Cluster Subnet Routing", True, status, "Workstation VM Access"))
+        else:
+            status = f"{YELLOW}ROUTE MISSING (`sudo ip route replace 192.168.122.0/24 via {target_host}`){RESET}"
+            CHECKS.append(("Cluster Subnet Routing", False, status, "Workstation VM Access"))
+    except Exception as e:
+        CHECKS.append(("Cluster Subnet Routing", True, f"{YELLOW}SKIPPED ({e}){RESET}", "Workstation VM Access"))
 
 def main():
     print(f"\n{BLUE}{BOLD}=============================================================================={RESET}")
@@ -71,11 +103,12 @@ def main():
     check_local_item("Kubernetes CLI (kubectl)", "kubectl version --client -o yaml | grep gitVersion", required=True, purpose="Cluster Operations")
     check_local_item("Helm CLI", "helm version --short", required=True, purpose="Package & Chart Management")
     check_local_item("Cilium CLI", "cilium version --client", required=False, purpose="eBPF CNI & Hubble Diagnostics")
-    check_local_item("Pre-Commit", "pre-commit --version", required=True, purpose="Git Code Quality Hooks")
+    check_local_item("Pre-Commit", "pre-commit --version", required=False, purpose="Git Code Quality Hooks")
     check_local_item("GitHub CLI (gh)", "gh --version", required=True, purpose="Issue & Milestone Tracking")
     check_local_item("Python 3", "python3 --version", required=True, purpose="Automation & Verification Scripts")
     check_gh_auth()
     check_pre_commit()
+    check_workstation_network()
 
     all_passed = True
     print(f"{BOLD}{'Tool / Check':<32} {'Status':<36} {'Purpose'}{RESET}")

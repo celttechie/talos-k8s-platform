@@ -91,6 +91,11 @@ def main():
     net_str = ", ".join(nets) if nets else "None active"
     record("Network Bridges", has_net, f"{GREEN}OK{RESET} ({net_str})" if has_net else f"{RED}NO ACTIVE BRIDGES{RESET}", "VM Networking")
 
+    # 8. Host Kernel IP Forwarding
+    res = subprocess.run(ssh_base + ["sysctl -n net.ipv4.ip_forward"], capture_output=True, text=True)
+    ip_fwd = res.stdout.strip() == "1"
+    record("Kernel IP Forwarding", ip_fwd, f"{GREEN}ENABLED{RESET} (net.ipv4.ip_forward=1)" if ip_fwd else f"{RED}DISABLED (Run `sysctl -w net.ipv4.ip_forward=1`){RESET}", "Routed VM Traffic")
+
     all_passed = True
     print(f"{BOLD}{'Server Resource / Check':<32} {'Status':<36} {'Purpose'}{RESET}")
     print("-" * 80)
