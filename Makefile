@@ -121,21 +121,37 @@ talos-gen-config: ## Generate declarative Talos machine configurations with patc
 	@echo -e "$(GREEN)===> Generating Talos machine configurations...$(RESET)"
 	@bash $(SCRIPTS_DIR)/generate_talos_config.sh
 
+.PHONY: talos-apply-config
+talos-apply-config: ## Apply declarative machine configs to Control Plane & Worker nodes
+	@echo -e "$(GREEN)===> Applying Talos machine configurations...$(RESET)"
+	@python3 $(SCRIPTS_DIR)/bootstrap_cluster.py --apply-only
+
 .PHONY: talos-bootstrap
-talos-bootstrap: ## Bootstrap etcd and initialize upstream control plane
+talos-bootstrap: ## Bootstrap etcd quorum and initialize upstream control plane
 	@echo -e "$(GREEN)===> Bootstrapping Talos Kubernetes control plane...$(RESET)"
-	talosctl --talosconfig $(TALOS_DIR)/talosconfig bootstrap
+	@python3 $(SCRIPTS_DIR)/bootstrap_cluster.py --bootstrap-only
 
 .PHONY: talos-kubeconfig
 talos-kubeconfig: ## Extract admin kubeconfig from Talos control plane
 	@echo -e "$(GREEN)===> Extracting admin kubeconfig...$(RESET)"
-	talosctl --talosconfig $(TALOS_DIR)/talosconfig kubeconfig ./kubeconfig
-	@echo -e "$(GREEN)Admin kubeconfig written to ./kubeconfig$(RESET)"
+	@python3 $(SCRIPTS_DIR)/bootstrap_cluster.py --kubeconfig-only
 
 .PHONY: talos-health
 talos-health: ## Verify health of etcd, control plane components, and nodes
 	@echo -e "$(GREEN)===> Auditing Talos cluster health...$(RESET)"
-	talosctl --talosconfig $(TALOS_DIR)/talosconfig health
+	@python3 $(SCRIPTS_DIR)/bootstrap_cluster.py --health-only
+
+.PHONY: verify-stage3
+verify-stage3: ## Run automated verification checks on Stage 3 Talos bootstrapping
+	@echo -e "$(GREEN)===> Running Stage 3 verification test suite...$(RESET)"
+	@python3 $(SCRIPTS_DIR)/verify_stage3.py
+
+.PHONY: test-m2
+test-m2: ## Execute full Milestone 2 validation and verification test suite
+	@echo -e "$(GREEN)===> Running Milestone 2 Test Suite...$(RESET)"
+	@$(MAKE) talos-gen-config
+	@$(MAKE) verify-stage3
+
 
 ##@ 🌐 Stage 4: Platform Services (Cilium CNI & Longhorn CSI)
 
