@@ -14,6 +14,7 @@ STAGE2_DIR  := terraform/environments/02-talos-cluster
 TALOS_DIR   := talos
 GITOPS_DIR  := gitops
 SCRIPTS_DIR := scripts
+export KUBECONFIG ?= $(CURDIR)/kubeconfig
 
 -include target.env
 
@@ -174,10 +175,12 @@ cilium-verify: ## Run automated connectivity & eBPF flow tests
 .PHONY: longhorn-install
 longhorn-install: ## Deploy Longhorn distributed block storage
 	@echo -e "$(GREEN)===> Deploying Longhorn CSI storage engine...$(RESET)"
+	kubectl create namespace longhorn-system --dry-run=client -o yaml | kubectl apply -f -
+	kubectl label namespace longhorn-system pod-security.kubernetes.io/enforce=privileged pod-security.kubernetes.io/audit=privileged pod-security.kubernetes.io/warn=privileged --overwrite
 	helm repo add longhorn https://charts.longhorn.io 2>/dev/null || true
 	helm repo update longhorn
 	helm upgrade --install longhorn longhorn/longhorn --version 1.7.1 \
-		--namespace longhorn-system --create-namespace \
+		--namespace longhorn-system \
 		-f $(GITOPS_DIR)/platform/longhorn/values.yaml
 
 .PHONY: verify-stage4

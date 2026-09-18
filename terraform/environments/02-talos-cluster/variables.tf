@@ -17,9 +17,9 @@ variable "talos_version" {
 }
 
 variable "talos_image_url" {
-  description = "Source URL or local path for the Talos nocloud amd64 disk image."
+  description = "Source URL or local path for the Talos nocloud amd64 disk image (includes iscsi-tools and util-linux-tools for Longhorn)."
   type        = string
-  default     = "https://factory.talos.dev/image/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba/v1.8.1/nocloud-amd64.raw"
+  default     = "https://factory.talos.dev/image/613e1592b2da41ae5e265e8789429f22e121aab91cb4deb6bc3c0b6262961245/v1.8.1/nocloud-amd64.raw"
 }
 
 variable "storage_pool" {
