@@ -1,8 +1,8 @@
 # Developer & Workflow Guide
 
-> [!WARNING]
-> **Project Status: Alpha / Active Early Development**
-> This repository is in active alpha development with minimal testing. APIs, module structures, and scripts are under rapid iteration.
+> [!NOTE]
+> **Project Status: Implementation Complete / Active Verification**
+> All core platform components (M1–M6) are fully implemented. The repository is actively running validation suites, preflight diagnostics, and troubleshooting drill verifications.
 
 This guide establishes the local development workflow, quality assurance standards, environment diagnostics, and step-by-step commands for the **Talos Kubernetes Platform**.
 
@@ -94,11 +94,42 @@ make talos-health
 # Stage 4: Platform Services (Cilium eBPF & Longhorn Storage)
 # -------------------------------------------------------------
 make cilium-install
-make cilium-verify
 make longhorn-install
+make verify-stage4
 
 # -------------------------------------------------------------
-# Stage 5: GitOps Delivery (ArgoCD & HA Database)
+# Stage 5: GitOps Delivery & Training Workloads
 # -------------------------------------------------------------
 make gitops-bootstrap
+make workload-install
+make verify-stage5
+
+# -------------------------------------------------------------
+# Stage 6: Observability (Prometheus, Grafana & Hubble)
+# -------------------------------------------------------------
+make monitoring-install
+make verify-stage6
+
+# -------------------------------------------------------------
+# Fault Injection Drills & Disaster Recovery
+# -------------------------------------------------------------
+make drill-list
+make drill-inject SCENARIO=comp-oom-killed
+make drill-verify SCENARIO=comp-oom-killed
+make drill-heal SCENARIO=comp-oom-killed
+```
+
+---
+
+## 5. Milestone Verification Test Suites
+
+Each milestone contains an automated test harness to validate syntax, manifest schemas, and configuration integrity:
+
+```bash
+make test-m1   # Milestone 1: Terraform modules & virtualization schemas
+make test-m2   # Milestone 2: Talos config generator & machine patches
+make test-m3   # Milestone 3: Cilium CNI eBPF & Longhorn storage values
+make test-m4   # Milestone 4: GitOps root-app & microservice workload manifests
+make test-m5   # Milestone 5: Drill manager CLI & troubleshooting scenarios
+make test-m6   # Milestone 6: Prometheus rules, alert thresholds & Grafana dashboards
 ```
