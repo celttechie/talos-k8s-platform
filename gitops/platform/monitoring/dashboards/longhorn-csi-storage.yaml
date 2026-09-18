@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-longhorn-storage
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/part-of: kube-prometheus-stack
+data:
+  longhorn-csi-storage.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "title": "Longhorn Dynamic Volume Status & Replica Health",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "sum by (volume) (longhorn_volume_robustness)",
+              "legendFormat": "{{volume}} (1=Healthy, 2=Degraded, 3=Faulted)"
+            }
+          ]
+        },
+        {
+          "title": "Dynamic PVC Read / Write IOPS",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 16, "x": 8, "y": 0 },
+          "targets": [
+            {
+              "expr": "sum by (volume) (rate(longhorn_volume_read_ops_total[2m]))",
+              "legendFormat": "Read IOPS - {{volume}}"
+            },
+            {
+              "expr": "sum by (volume) (rate(longhorn_volume_write_ops_total[2m]))",
+              "legendFormat": "Write IOPS - {{volume}}"
+            }
+          ]
+        },
+        {
+          "title": "Volume Read / Write Throughput (Bytes/sec)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "sum by (volume) (rate(longhorn_volume_read_throughput_bytes[2m]))",
+              "legendFormat": "Read - {{volume}}"
+            },
+            {
+              "expr": "sum by (volume) (rate(longhorn_volume_write_throughput_bytes[2m]))",
+              "legendFormat": "Write - {{volume}}"
+            }
+          ]
+        },
+        {
+          "title": "Worker Storage Disk Capacity Utilization",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            {
+              "expr": "(longhorn_node_storage_capacity_bytes - longhorn_node_storage_available_bytes) / longhorn_node_storage_capacity_bytes * 100",
+              "legendFormat": "Node: {{node}} Utilization %"
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 38,
+      "tags": ["longhorn", "storage", "csi", "troubleshooting"],
+      "title": "Longhorn CSI / Dynamic Volume & IOPS Telemetry",
+      "uid": "lab-longhorn-storage"
+    }

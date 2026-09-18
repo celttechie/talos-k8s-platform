@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-cilium-network
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/part-of: kube-prometheus-stack
+data:
+  cilium-ebpf-network.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "title": "Cilium eBPF Packet Drop Rate by Reason",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "sum by (reason) (rate(cilium_drop_count_total[2m]))",
+              "legendFormat": "Reason: {{reason}}"
+            }
+          ]
+        },
+        {
+          "title": "Cilium NetworkPolicy Drops",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "expr": "sum(rate(cilium_drop_count_total{reason=~\"Policy denied|Policy drop\"}[2m]))",
+              "legendFormat": "Policy Drops"
+            }
+          ]
+        },
+        {
+          "title": "CoreDNS Request Latency (p99)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(coredns_dns_request_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "p99 DNS Latency"
+            }
+          ]
+        },
+        {
+          "title": "TCP Connection State Counts",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            {
+              "expr": "sum by (family) (cilium_tcp_flags_total)",
+              "legendFormat": "TCP Flag: {{family}}"
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 38,
+      "tags": ["cilium", "networking", "ebpf", "troubleshooting"],
+      "title": "Cilium eBPF / Network Drops & DNS Telemetry",
+      "uid": "lab-cilium-network"
+    }

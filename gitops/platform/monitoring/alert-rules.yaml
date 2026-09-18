@@ -1,0 +1,65 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: lab-troubleshooting-alerts
+  namespace: monitoring
+  labels:
+    role: alert-rules
+    app.kubernetes.io/part-of: kube-prometheus-stack
+spec:
+  groups:
+    - name: training-lab-compute-alerts
+      rules:
+        - alert: TrainingPodCrashLooping
+          expr: rate(kube_pod_container_status_restarts_total{namespace="training"}[5m]) * 60 > 2
+          for: 1m
+          labels:
+            severity: critical
+            domain: compute
+          annotations:
+            summary: "Container {{ $labels.container }} in pod {{ $labels.pod }} is crashlooping"
+            description: "Restart rate is {{ $value }} restarts per minute."
+
+        - alert: TrainingPodMemoryLimitSurge
+          expr: container_memory_working_set_bytes{namespace="training",container!=""} / container_spec_memory_limit_bytes{namespace="training",container!=""} > 0.85
+          for: 30s
+          labels:
+            severity: warning
+            domain: compute
+          annotations:
+            summary: "Memory usage approaching ceiling for {{ $labels.container }}"
+            description: "Container memory is at {{ $value | humanizePercentage }} of its limit."
+
+        - alert: TrainingPodCPUThrottlingHigh
+          expr: rate(container_cpu_cfs_throttled_periods_total{namespace="training"}[5m]) / rate(container_cpu_cfs_periods_total{namespace="training"}[5m]) > 0.60
+          for: 1m
+          labels:
+            severity: warning
+            domain: compute
+          annotations:
+            summary: "High CPU throttling on {{ $labels.container }}"
+            description: "Throttled periods are exceeding 60%."
+
+    - name: training-lab-network-alerts
+      rules:
+        - alert: CiliumNetworkDropsDetected
+          expr: rate(cilium_drop_count_total{reason=~".+"}[2m]) > 5
+          for: 30s
+          labels:
+            severity: warning
+            domain: networking
+          annotations:
+            summary: "eBPF packet drops detected by Cilium"
+            description: "Drop rate is {{ $value }} drops/sec."
+
+    - name: training-lab-storage-alerts
+      rules:
+        - alert: LonghornVolumeDegraded
+          expr: longhorn_volume_robustness == 2
+          for: 1m
+          labels:
+            severity: critical
+            domain: storage
+          annotations:
+            summary: "Longhorn volume {{ $labels.volume }} is in Degraded state"
+            description: "Volume has lost replica redundancy."

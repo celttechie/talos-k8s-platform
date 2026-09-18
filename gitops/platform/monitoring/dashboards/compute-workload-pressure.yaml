@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-compute-pressure
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/part-of: kube-prometheus-stack
+data:
+  compute-workload-pressure.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "title": "Container CPU Usage vs Limit",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate{namespace=\"training\"}",
+              "legendFormat": "{{pod}} ({{container}}) - Usage"
+            },
+            {
+              "expr": "kube_pod_container_resource_limits{namespace=\"training\",resource=\"cpu\"}",
+              "legendFormat": "{{pod}} ({{container}}) - Limit"
+            }
+          ]
+        },
+        {
+          "title": "CPU CFS Throttling Percentage",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "expr": "rate(container_cpu_cfs_throttled_periods_total{namespace=\"training\"}[5m]) / rate(container_cpu_cfs_periods_total{namespace=\"training\"}[5m]) * 100",
+              "legendFormat": "{{pod}} ({{container}})"
+            }
+          ]
+        },
+        {
+          "title": "Container Memory (Working Set vs Limit)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "container_memory_working_set_bytes{namespace=\"training\",container!=\"\"}",
+              "legendFormat": "{{pod}} ({{container}}) - Working Set"
+            },
+            {
+              "expr": "container_spec_memory_limit_bytes{namespace=\"training\",container!=\"\"}",
+              "legendFormat": "{{pod}} ({{container}}) - Limit"
+            }
+          ]
+        },
+        {
+          "title": "Pod Restarts & Lifecycle State",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            {
+              "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"training\"}[1h])",
+              "legendFormat": "{{pod}} Restarts"
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 38,
+      "tags": ["compute", "troubleshooting", "training"],
+      "title": "Kubernetes / Compute & Workload Pressure",
+      "uid": "lab-compute-pressure"
+    }
