@@ -17,10 +17,10 @@ provider "libvirt" {
 # -----------------------------------------------------------------------------
 
 resource "libvirt_volume" "talos_base_image" {
-  name   = "talos-${var.talos_version}-nocloud-amd64.qcow2"
+  name   = "talos-${var.talos_version}-nocloud-amd64.raw"
   pool   = var.storage_pool
   source = var.talos_image_url
-  format = "qcow2"
+  format = "raw"
 }
 
 # -----------------------------------------------------------------------------

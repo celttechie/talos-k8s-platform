@@ -19,7 +19,7 @@ variable "talos_version" {
 variable "talos_image_url" {
   description = "Source URL or local path for the Talos nocloud amd64 disk image."
   type        = string
-  default     = "https://factory.talos.dev/image/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba/v1.8.1/nocloud-amd64.raw.xz"
+  default     = "https://factory.talos.dev/image/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba/v1.8.1/nocloud-amd64.raw"
 }
 
 variable "storage_pool" {
