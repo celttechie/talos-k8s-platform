@@ -10,12 +10,14 @@ import shutil
 import subprocess
 import sys
 
-GREEN = "\033[32m"
-RED = "\033[31m"
-YELLOW = "\033[33m"
-BLUE = "\033[36m"
-BOLD = "\033[1m"
-RESET = "\033[0m"
+from common import (
+    BLUE,
+    BOLD,
+    GREEN,
+    RED,
+    RESET,
+    YELLOW,
+)
 
 CHECKS = []
 

@@ -1,45 +1,31 @@
 #!/usr/bin/env python3
 """
 Talos Kubernetes Platform - Target Server Pre-Flight Validator
-Audits the target hypervisor host (Dell Precision T5600) for hardware virtualization,
+Audits the target hypervisor host for hardware virtualization,
 KVM kernel modules, memory capacity, remote libvirt daemon health, storage pools, and network bridges.
 """
 
 import argparse
-import os
 import subprocess
 import sys
 
-GREEN = "\033[32m"
-RED = "\033[31m"
-YELLOW = "\033[33m"
-BLUE = "\033[36m"
-BOLD = "\033[1m"
-RESET = "\033[0m"
+from common import (
+    BLUE,
+    BOLD,
+    GREEN,
+    RED,
+    RESET,
+    get_target_host,
+)
 
 CHECKS = []
 
 def record(name, passed, status, purpose):
     CHECKS.append((name, passed, status, purpose))
 
-def get_default_host():
-    if os.getenv("TARGET_HOST"):
-        return os.getenv("TARGET_HOST")
-    target_env = os.path.join(os.path.dirname(__file__), "..", "target.env")
-    if os.path.exists(target_env):
-        try:
-            with open(target_env, "r") as f:
-                for line in f:
-                    if line.startswith("TARGET_HOST="):
-                        val = line.split("=", 1)[1].strip().strip('"\'')
-                        if val:
-                            return val
-        except Exception:
-            pass
-    return ""
 
 def main():
-    default_host = get_default_host()
+    default_host = get_target_host() or ""
     parser = argparse.ArgumentParser(description="Target Hypervisor Server Pre-Flight Diagnostics")
     parser.add_argument("--host", default=default_host, help=f"SSH hostname or IP of the target hypervisor server (default: {default_host or 'target.env'})")
     args = parser.parse_args()
@@ -123,4 +109,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-
