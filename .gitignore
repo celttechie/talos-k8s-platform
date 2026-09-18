@@ -49,3 +49,7 @@ Thumbs.db
 .vscode/
 *.swp
 *~
+__pycache__/
+*.py[cod]
+*$py.class
+
