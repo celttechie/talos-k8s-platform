@@ -1,0 +1,20 @@
+apiVersion: "cilium.io/v2alpha1"
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: "lan-pool"
+spec:
+  cidrs:
+    - cidr: "192.168.122.200/29" # Allocates 192.168.122.200 - 192.168.122.207 for LoadBalancer Services
+---
+apiVersion: "cilium.io/v2alpha1"
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: "default-l2-policy"
+spec:
+  interfaces:
+    - eth0
+  loadBalancerIPs: true
+  nodeSelector:
+    matchExpressions:
+      - key: node-role.kubernetes.io/control-plane
+        operator: DoesNotExist
