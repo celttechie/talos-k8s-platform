@@ -62,13 +62,47 @@ def main():
 
     record("Sandbox IP Assignment", True, f"Assigned IP: {sandbox_ip}")
 
-    # 1. SSH Connectivity (Direct or via T5600 jump host)
+def get_target_host():
+    """Dynamically determine target hypervisor host from environment, target.env, or terraform.tfvars."""
+    if os.getenv("TARGET_HOST"):
+        return os.getenv("TARGET_HOST")
+
+    target_env = os.path.join(os.path.dirname(__file__), "..", "target.env")
+    if os.path.exists(target_env):
+        try:
+            with open(target_env, "r") as f:
+                for line in f:
+                    if line.startswith("TARGET_HOST="):
+                        val = line.split("=", 1)[1].strip().strip('"\'')
+                        if val:
+                            return val
+        except Exception:
+            pass
+
+    for stage in ["01-nested-sandbox", "02-talos-cluster"]:
+        tfvars_path = os.path.join(os.path.dirname(__file__), "..", "terraform", "environments", stage, "terraform.tfvars")
+        if os.path.exists(tfvars_path):
+            try:
+                with open(tfvars_path, "r") as f:
+                    for line in f:
+                        if "libvirt_uri" in line:
+                            import re
+                            match = re.search(r"@([^/:]+)", line)
+                            if match:
+                                return match.group(1)
+            except Exception:
+                pass
+    return None
+
+    # 1. SSH Connectivity (Direct or via target hypervisor jump host)
     ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", f"ubuntu@{sandbox_ip}"]
     res = subprocess.run(ssh_cmd + ["echo connected"], capture_output=True, text=True)
     if res.returncode != 0:
-        # Fallback to jump host proxy through T5600
-        ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", "-J", "t5600", f"ubuntu@{sandbox_ip}"]
-        res = subprocess.run(ssh_cmd + ["echo connected"], capture_output=True, text=True)
+        target_host = get_target_host()
+        if target_host and target_host not in ["localhost", "127.0.0.1"]:
+            # Fallback to jump host proxy through target hypervisor
+            ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", "-J", target_host, f"ubuntu@{sandbox_ip}"]
+            res = subprocess.run(ssh_cmd + ["echo connected"], capture_output=True, text=True)
 
     ssh_ok = res.returncode == 0
     record("SSH Connectivity", ssh_ok, "SSH handshake successful" if ssh_ok else res.stderr.strip())

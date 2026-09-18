@@ -6,6 +6,7 @@ Validates Talos VM domain states, disk geometry (Longhorn secondary storage), an
 
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -37,13 +38,62 @@ def get_stage2_outputs():
     except Exception as e:
         return None
 
+def get_target_host():
+    """Dynamically determine target hypervisor host from environment, target.env, or terraform.tfvars."""
+    if os.getenv("TARGET_HOST"):
+        return os.getenv("TARGET_HOST")
+
+    target_env = os.path.join(os.path.dirname(__file__), "..", "target.env")
+    if os.path.exists(target_env):
+        try:
+            with open(target_env, "r") as f:
+                for line in f:
+                    if line.startswith("TARGET_HOST="):
+                        val = line.split("=", 1)[1].strip().strip('"\'')
+                        if val:
+                            return val
+        except Exception:
+            pass
+
+    for stage in ["02-talos-cluster", "01-nested-sandbox"]:
+        tfvars_path = os.path.join(os.path.dirname(__file__), "..", "terraform", "environments", stage, "terraform.tfvars")
+        if os.path.exists(tfvars_path):
+            try:
+                with open(tfvars_path, "r") as f:
+                    for line in f:
+                        if "libvirt_uri" in line:
+                            match = re.search(r"@([^/:]+)", line)
+                            if match:
+                                return match.group(1)
+            except Exception:
+                pass
+    return None
+
 def check_tcp_port(ip, port, timeout=3):
+    # 1. Try direct local socket connection
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(timeout)
         result = sock.connect_ex((ip, port))
         sock.close()
-        return result == 0
+        if result == 0:
+            return True
+    except Exception:
+        pass
+
+    # 2. Fallback to probing through target hypervisor host (for remote libvirt networks)
+    target_host = get_target_host()
+    if not target_host or target_host in ["localhost", "127.0.0.1"]:
+        return False
+
+    try:
+        cmd = [
+            "ssh", "-o", "ConnectTimeout=3", "-o", "StrictHostKeyChecking=no",
+            target_host,
+            f"python3 -c 'import socket; s = socket.socket(); s.settimeout({timeout}); res = s.connect_ex((\"{ip}\", {port})); s.close(); exit(res)'"
+        ]
+        res = subprocess.run(cmd, capture_output=True, timeout=timeout + 3)
+        return res.returncode == 0
     except Exception:
         return False
 

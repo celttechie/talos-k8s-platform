@@ -22,12 +22,33 @@ CHECKS = []
 def record(name, passed, status, purpose):
     CHECKS.append((name, passed, status, purpose))
 
+def get_default_host():
+    if os.getenv("TARGET_HOST"):
+        return os.getenv("TARGET_HOST")
+    target_env = os.path.join(os.path.dirname(__file__), "..", "target.env")
+    if os.path.exists(target_env):
+        try:
+            with open(target_env, "r") as f:
+                for line in f:
+                    if line.startswith("TARGET_HOST="):
+                        val = line.split("=", 1)[1].strip().strip('"\'')
+                        if val:
+                            return val
+        except Exception:
+            pass
+    return ""
+
 def main():
+    default_host = get_default_host()
     parser = argparse.ArgumentParser(description="Target Hypervisor Server Pre-Flight Diagnostics")
-    parser.add_argument("--host", default=os.getenv("TARGET_HOST", "t5600"), help="SSH hostname or IP of the target hypervisor server (default: t5600)")
+    parser.add_argument("--host", default=default_host, help=f"SSH hostname or IP of the target hypervisor server (default: {default_host or 'target.env'})")
     args = parser.parse_args()
 
     server_host = args.host
+    if not server_host:
+        print(f"\n{RED}{BOLD}Error: No target host specified. Run 'make configure' or pass --host <server>{RESET}\n")
+        return 1
+
     ssh_base = ["ssh", "-o", "ConnectTimeout=3", "-o", "StrictHostKeyChecking=no", server_host]
 
     print(f"\n{BLUE}{BOLD}=============================================================================={RESET}")
