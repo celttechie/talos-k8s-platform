@@ -38,7 +38,7 @@ help: ## Display this interactive help menu
 configure: ## Interactive wizard to define, verify, and persist target deployment server
 	@python3 $(SCRIPTS_DIR)/configure.py
 
-TARGET_HOST ?= $(if $(TARGET_HOST),$(TARGET_HOST),t5600)
+TARGET_HOST ?= $(if $(TARGET_HOST),$(TARGET_HOST),$(shell [ -f target.env ] && grep '^TARGET_HOST=' target.env | cut -d'=' -f2 | tr -d '\"\''))
 
 .PHONY: doctor
 doctor: ## Audit local workstation developer tools, CLI binaries, and git hooks
