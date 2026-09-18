@@ -47,7 +47,7 @@ hubble:
       - icmp
       - http
     serviceMonitor:
-      enabled: true
+      enabled: false
   relay:
     enabled: true
   ui:
@@ -61,11 +61,11 @@ hubble:
 prometheus:
   enabled: true
   serviceMonitor:
-    enabled: true
+    enabled: false
 
 operator:
   replicas: 1
   prometheus:
     enabled: true
     serviceMonitor:
-      enabled: true
+      enabled: false
