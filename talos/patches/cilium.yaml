@@ -1,0 +1,7 @@
+# Talos patch to disable default CNI and kube-proxy in preparation for Cilium eBPF
+cluster:
+  network:
+    cni:
+      name: none
+  proxy:
+    disabled: true
