@@ -256,6 +256,17 @@ drill-verify: ## Verify symptoms of an active scenario (usage: make drill-verify
 drill-heal: ## Restore healthy state (usage: make drill-heal SCENARIO=<id> or SCENARIO=all)
 	@python3 $(SCRIPTS_DIR)/drill_manager.py --heal $(if $(SCENARIO),$(SCENARIO),all)
 
+.PHONY: verify-drills
+verify-drills: ## Run automated verification checks on troubleshooting drills and runbooks
+	@echo -e "$(GREEN)===> Running Milestone 5 drill verification suite...$(RESET)"
+	@python3 $(SCRIPTS_DIR)/verify_drills.py
+
+.PHONY: test-m5
+test-m5: ## Execute full Milestone 5 validation and verification test suite
+	@echo -e "$(GREEN)===> Running Milestone 5 Test Suite...$(RESET)"
+	@$(MAKE) verify-drills
+
+
 ##@ 🔄 Stage 5: GitOps Delivery (ArgoCD & Workloads)
 
 .PHONY: argocd-install
