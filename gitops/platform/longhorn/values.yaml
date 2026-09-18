@@ -1,0 +1,39 @@
+# Longhorn Distributed Block Storage Configuration
+# Configured for Talos Linux worker nodes with secondary disk /dev/vdb mounted to /var/lib/longhorn
+
+defaultSettings:
+  defaultDataPath: "/var/lib/longhorn"
+  defaultReplicaCount: 2
+  storageOverProvisioningPercentage: 200
+  storageMinimalAvailablePercentage: 15
+  guaranteedInstanceManagerCPU: 10
+  replicaAutoBalance: "least-effort"
+  autoSalvage: true
+  fastReplicaRebuildEnabled: true
+
+persistence:
+  defaultClass: true
+  defaultClassReplicaCount: 2
+  reclaimPolicy: Delete
+
+csi:
+  kubeletRootDir: "/var/lib/kubelet"
+  attacher:
+    replicaCount: 1
+  provisioner:
+    replicaCount: 1
+  resizer:
+    replicaCount: 1
+  snapshotter:
+    replicaCount: 1
+
+service:
+  ui:
+    type: ClusterIP
+    nodePort: ""
+
+longhornUI:
+  replicas: 1
+
+ingress:
+  enabled: false

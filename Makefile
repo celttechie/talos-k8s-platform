@@ -156,11 +156,15 @@ test-m2: ## Execute full Milestone 2 validation and verification test suite
 ##@ 🌐 Stage 4: Platform Services (Cilium CNI & Longhorn CSI)
 
 .PHONY: cilium-install
-cilium-install: ## Deploy Cilium CNI with eBPF kube-proxy replacement
+cilium-install: ## Deploy Cilium CNI with eBPF kube-proxy replacement and L2 policies
 	@echo -e "$(GREEN)===> Deploying Cilium CNI via Helm...$(RESET)"
+	helm repo add cilium https://helm.cilium.io/ 2>/dev/null || true
+	helm repo update cilium
 	helm upgrade --install cilium cilium/cilium --version 1.16.1 \
 		--namespace kube-system \
 		-f $(GITOPS_DIR)/platform/cilium/values.yaml
+	@echo -e "$(GREEN)===> Applying Cilium L2 Announcement Policy & IP Pool...$(RESET)"
+	kubectl apply -f $(GITOPS_DIR)/platform/cilium/l2-policy.yaml
 
 .PHONY: cilium-verify
 cilium-verify: ## Run automated connectivity & eBPF flow tests
@@ -170,9 +174,22 @@ cilium-verify: ## Run automated connectivity & eBPF flow tests
 .PHONY: longhorn-install
 longhorn-install: ## Deploy Longhorn distributed block storage
 	@echo -e "$(GREEN)===> Deploying Longhorn CSI storage engine...$(RESET)"
+	helm repo add longhorn https://charts.longhorn.io 2>/dev/null || true
+	helm repo update longhorn
 	helm upgrade --install longhorn longhorn/longhorn --version 1.7.1 \
 		--namespace longhorn-system --create-namespace \
 		-f $(GITOPS_DIR)/platform/longhorn/values.yaml
+
+.PHONY: verify-stage4
+verify-stage4: ## Run automated verification checks on Stage 4 Cilium and Longhorn
+	@echo -e "$(GREEN)===> Running Stage 4 verification test suite...$(RESET)"
+	@python3 $(SCRIPTS_DIR)/verify_stage4.py
+
+.PHONY: test-m3
+test-m3: ## Execute full Milestone 3 validation and verification test suite
+	@echo -e "$(GREEN)===> Running Milestone 3 Test Suite...$(RESET)"
+	@$(MAKE) verify-stage4
+
 
 ##@ 📊 Observability & Monitoring (Prometheus, Grafana & Hubble)
 
