@@ -209,14 +209,24 @@ monitoring-install: ## Deploy kube-prometheus-stack, Alert Rules & Grafana Dashb
 	kubectl apply -f $(GITOPS_DIR)/platform/monitoring/dashboards/ --namespace monitoring
 
 .PHONY: hubble-ui
-hubble-ui: ## Port-forward and open Cilium Hubble UI (http://localhost:12000)
+hubble-ui: ## Port-forward Cilium Hubble UI to http://localhost:12000
 	@echo -e "$(GREEN)===> Port-forwarding Hubble UI to http://localhost:12000...$(RESET)"
-	cilium hubble ui --port 12000
+	kubectl port-forward -n kube-system svc/hubble-ui 12000:80
 
 .PHONY: grafana
 grafana: ## Port-forward Grafana dashboard to http://localhost:3000 (admin / prom-operator)
 	@echo -e "$(GREEN)===> Port-forwarding Grafana to http://localhost:3000...$(RESET)"
 	kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
+
+.PHONY: argocd
+argocd: ## Port-forward ArgoCD UI to https://localhost:8080
+	@echo -e "$(GREEN)===> Port-forwarding ArgoCD UI to https://localhost:8080...$(RESET)"
+	kubectl port-forward -n argocd svc/argocd-server 8080:443
+
+.PHONY: longhorn
+longhorn: ## Port-forward Longhorn storage UI to http://localhost:8000
+	@echo -e "$(GREEN)===> Port-forwarding Longhorn UI to http://localhost:8000...$(RESET)"
+	kubectl port-forward -n longhorn-system svc/longhorn-frontend 8000:80
 
 .PHONY: verify-stage6
 verify-stage6: ## Run automated verification checks on Stage 6 Observability Stack
