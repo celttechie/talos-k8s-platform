@@ -202,7 +202,7 @@ monitoring-install: ## Deploy kube-prometheus-stack, Alert Rules & Grafana Dashb
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
 	helm repo update prometheus-community
 	helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
-		--namespace monitoring --create-namespace \
+		--namespace monitoring --create-namespace --skip-crds \
 		-f $(GITOPS_DIR)/platform/monitoring/kube-prometheus-stack.yaml
 	@echo -e "$(GREEN)===> Applying lab alert rules & Grafana Dashboards...$(RESET)"
 	kubectl apply -f $(GITOPS_DIR)/platform/monitoring/alert-rules.yaml --namespace monitoring

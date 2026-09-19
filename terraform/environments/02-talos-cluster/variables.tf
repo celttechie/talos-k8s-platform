@@ -43,7 +43,7 @@ variable "controlplane_vcpu" {
 variable "controlplane_memory_mb" {
   description = "Memory allocated to control plane node in MB."
   type        = number
-  default     = 2048 # 2 GB
+  default     = 4096 # 4 GB
 }
 
 variable "worker_vcpu" {
@@ -55,7 +55,7 @@ variable "worker_vcpu" {
 variable "worker_memory_mb" {
   description = "Memory allocated to each worker node in MB."
   type        = number
-  default     = 3072 # 3 GB
+  default     = 4096 # 4 GB
 }
 
 variable "os_disk_size_bytes" {
