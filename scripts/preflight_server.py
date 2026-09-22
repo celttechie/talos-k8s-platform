@@ -6,6 +6,7 @@ KVM kernel modules, memory capacity, remote libvirt daemon health, storage pools
 """
 
 import argparse
+import os
 import subprocess
 import sys
 
@@ -16,6 +17,7 @@ from common import (
     RED,
     RESET,
     get_target_host,
+    load_target_env,
 )
 
 CHECKS = []
@@ -25,9 +27,15 @@ def record(name, passed, status, purpose):
 
 
 def main():
-    default_host = get_target_host() or ""
+    target_env = load_target_env()
+    default_host = target_env.get("TARGET_HOST") or get_target_host() or ""
+    default_user = target_env.get("TARGET_USER")
+    default_key = target_env.get("TARGET_SSH_KEY")
+
     parser = argparse.ArgumentParser(description="Target Hypervisor Server Pre-Flight Diagnostics")
     parser.add_argument("--host", default=default_host, help=f"SSH hostname or IP of the target hypervisor server (default: {default_host or 'target.env'})")
+    parser.add_argument("--user", default=default_user, help="SSH user on target server")
+    parser.add_argument("--key", default=default_key, help="Path to SSH private key")
     args = parser.parse_args()
 
     server_host = args.host
@@ -35,10 +43,16 @@ def main():
         print(f"\n{RED}{BOLD}Error: No target host specified. Run 'make configure' or pass --host <server>{RESET}\n")
         return 1
 
-    ssh_base = ["ssh", "-o", "ConnectTimeout=3", "-o", "StrictHostKeyChecking=no", server_host]
+    user_prefix = f"{args.user}@" if args.user else ""
+    target_spec = f"{user_prefix}{server_host}"
+
+    ssh_base = ["ssh", "-o", "ConnectTimeout=4", "-o", "StrictHostKeyChecking=no"]
+    if args.key and os.path.exists(args.key):
+        ssh_base += ["-i", args.key]
+    ssh_base.append(target_spec)
 
     print(f"\n{BLUE}{BOLD}=============================================================================={RESET}")
-    print(f"{BLUE}{BOLD}     Target Hypervisor Server Pre-Flight Check ({server_host})               {RESET}")
+    print(f"{BLUE}{BOLD}     Target Hypervisor Server Pre-Flight Check ({target_spec})               {RESET}")
     print(f"{BLUE}{BOLD}=============================================================================={RESET}\n")
 
     # 1. SSH Connectivity & Host Identification
