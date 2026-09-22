@@ -14,8 +14,8 @@ from common import (
     YELLOW,
     TestReporter,
     check_tcp_port,
+    get_cluster_endpoints,
     get_repo_root,
-    get_terraform_outputs,
 )
 
 REPO_ROOT = get_repo_root()
@@ -24,22 +24,6 @@ TALOSCONFIG = os.path.join(TALOS_DIR, "talosconfig")
 CP_CONFIG = os.path.join(TALOS_DIR, "controlplane.yaml")
 WORKER_CONFIG = os.path.join(TALOS_DIR, "worker.yaml")
 KUBECONFIG = os.path.join(REPO_ROOT, "kubeconfig")
-
-
-def get_cluster_endpoints():
-    data = get_terraform_outputs("01-talos-cluster", repo_root=REPO_ROOT)
-    if data:
-        endpoints = data.get("cluster_endpoints", {}).get("value", {})
-        return {
-            "controlplane_ip": endpoints.get("controlplane_ip", os.environ.get("CONTROL_PLANE_IP", "192.168.122.10")),
-            "worker_01_ip": endpoints.get("worker_01_ip", os.environ.get("WORKER_01_IP", "192.168.122.11")),
-            "worker_02_ip": endpoints.get("worker_02_ip", os.environ.get("WORKER_02_IP", "192.168.122.12")),
-        }
-    return {
-        "controlplane_ip": os.environ.get("CONTROL_PLANE_IP", "192.168.122.10"),
-        "worker_01_ip": os.environ.get("WORKER_01_IP", "192.168.122.11"),
-        "worker_02_ip": os.environ.get("WORKER_02_IP", "192.168.122.12"),
-    }
 
 
 def main():

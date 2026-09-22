@@ -16,9 +16,8 @@ from common import (
     RED,
     RESET,
     YELLOW,
+    get_cluster_endpoints,
     get_repo_root,
-    get_terraform_outputs,
-    resolve_node_ip,
     run_cmd,
 )
 
@@ -28,39 +27,6 @@ TALOSCONFIG = os.path.join(TALOS_DIR, "talosconfig")
 CP_CONFIG = os.path.join(TALOS_DIR, "controlplane.yaml")
 WORKER_CONFIG = os.path.join(TALOS_DIR, "worker.yaml")
 KUBECONFIG = os.path.join(REPO_ROOT, "kubeconfig")
-
-
-def get_cluster_endpoints():
-    data = get_terraform_outputs("01-talos-cluster", repo_root=REPO_ROOT)
-    cp_ip = os.environ.get("CONTROL_PLANE_IP")
-    w1_ip = os.environ.get("WORKER_01_IP")
-    w2_ip = os.environ.get("WORKER_02_IP")
-
-    if data:
-        endpoints = data.get("cluster_endpoints", {}).get("value", {})
-        cp_out = endpoints.get("controlplane_ip")
-        w1_out = endpoints.get("worker_01_ip")
-        w2_out = endpoints.get("worker_02_ip")
-
-        cp_nodes = data.get("controlplane_nodes", {}).get("value", {})
-        worker_nodes = data.get("worker_nodes", {}).get("value", {})
-
-        cp_mac = cp_nodes.get("mac_address", "52:54:00:10:00:10")
-        w1_mac = worker_nodes.get("worker_01", {}).get("mac_address", "52:54:00:10:00:21")
-        w2_mac = worker_nodes.get("worker_02", {}).get("mac_address", "52:54:00:10:00:22")
-
-        if not cp_ip or cp_ip == "pending-dhcp":
-            cp_ip = resolve_node_ip(cp_mac, default_ip=cp_out if cp_out != "pending-dhcp" else "192.168.122.224", repo_root=REPO_ROOT)
-        if not w1_ip or w1_ip == "pending-dhcp":
-            w1_ip = resolve_node_ip(w1_mac, default_ip=w1_out if w1_out != "pending-dhcp" else "192.168.122.241", repo_root=REPO_ROOT)
-        if not w2_ip or w2_ip == "pending-dhcp":
-            w2_ip = resolve_node_ip(w2_mac, default_ip=w2_out if w2_out != "pending-dhcp" else "192.168.122.242", repo_root=REPO_ROOT)
-
-    return {
-        "controlplane_ip": cp_ip or "192.168.122.224",
-        "worker_01_ip": w1_ip or "192.168.122.241",
-        "worker_02_ip": w2_ip or "192.168.122.242",
-    }
 
 
 def apply_machine_configs(endpoints, insecure=True):

@@ -157,7 +157,45 @@ def resolve_node_ip(mac_address, default_ip=None, repo_root=None):
     if mac_clean in leases:
         return leases[mac_clean]
 
-    return default_ip or "pending-dhcp"
+def get_cluster_endpoints(repo_root=None):
+    """Dynamically resolve control plane and worker IP endpoints.
+
+    Returns:
+        dict: Mapping of 'controlplane_ip', 'worker_01_ip', 'worker_02_ip'.
+    """
+    if repo_root is None:
+        repo_root = get_repo_root()
+
+    data = get_terraform_outputs("01-talos-cluster", repo_root=repo_root)
+    cp_ip = os.environ.get("CONTROL_PLANE_IP")
+    w1_ip = os.environ.get("WORKER_01_IP")
+    w2_ip = os.environ.get("WORKER_02_IP")
+
+    if data:
+        endpoints = data.get("cluster_endpoints", {}).get("value", {})
+        cp_out = endpoints.get("controlplane_ip")
+        w1_out = endpoints.get("worker_01_ip")
+        w2_out = endpoints.get("worker_02_ip")
+
+        cp_nodes = data.get("controlplane_nodes", {}).get("value", {})
+        worker_nodes = data.get("worker_nodes", {}).get("value", {})
+
+        cp_mac = cp_nodes.get("mac_address", "52:54:00:10:00:10") if isinstance(cp_nodes, dict) else "52:54:00:10:00:10"
+        w1_mac = worker_nodes.get("worker_01", {}).get("mac_address", "52:54:00:10:00:21") if isinstance(worker_nodes, dict) else "52:54:00:10:00:21"
+        w2_mac = worker_nodes.get("worker_02", {}).get("mac_address", "52:54:00:10:00:22") if isinstance(worker_nodes, dict) else "52:54:00:10:00:22"
+
+        if not cp_ip or cp_ip == "pending-dhcp":
+            cp_ip = resolve_node_ip(cp_mac, default_ip=cp_out if cp_out != "pending-dhcp" else "192.168.122.224", repo_root=repo_root)
+        if not w1_ip or w1_ip == "pending-dhcp":
+            w1_ip = resolve_node_ip(w1_mac, default_ip=w1_out if w1_out != "pending-dhcp" else "192.168.122.241", repo_root=repo_root)
+        if not w2_ip or w2_ip == "pending-dhcp":
+            w2_ip = resolve_node_ip(w2_mac, default_ip=w2_out if w2_out != "pending-dhcp" else "192.168.122.242", repo_root=repo_root)
+
+    return {
+        "controlplane_ip": cp_ip or "192.168.122.224",
+        "worker_01_ip": w1_ip or "192.168.122.241",
+        "worker_02_ip": w2_ip or "192.168.122.242",
+    }
 
 
 def get_terraform_outputs(environment_name, repo_root=None):
