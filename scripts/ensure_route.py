@@ -18,6 +18,7 @@ from common import (
     YELLOW,
     get_cluster_cidr,
     get_target_host,
+    load_target_env,
 )
 
 
@@ -42,11 +43,17 @@ def check_conflicting_interface(cidr: str) -> bool:
 
 
 def is_route_active(cidr: str, target_host: str) -> bool:
-    """Check if the route to the target CIDR is already present via target_host."""
+    """Check if the route to the target CIDR is already present via target_host or valid gateway."""
     try:
         res = subprocess.run(["ip", "route", "show", cidr], capture_output=True, text=True)
         route_out = res.stdout.strip()
+        if not route_out:
+            return False
+        # If target_host is specified and in route output, it's active
         if target_host in route_out or ("via" in route_out and target_host in route_out):
+            return True
+        # If any valid route exists for this CIDR (e.g. via base host), it's active
+        if "via" in route_out or "dev" in route_out:
             return True
     except Exception:
         pass
@@ -55,6 +62,21 @@ def is_route_active(cidr: str, target_host: str) -> bool:
 
 def ensure_route(cidr: str, target_host: str) -> bool:
     """Ensure the route exists, creating or updating it with sudo if necessary."""
+    import ipaddress
+    try:
+        # If target_host is inside the cluster CIDR, route via the base host gateway if available
+        if ipaddress.ip_address(target_host) in ipaddress.ip_network(cidr, strict=False):
+            if is_route_active(cidr, target_host):
+                return True
+            target_env = load_target_env()
+            gw = target_env.get("TARGET_BASE_HOST") or target_env.get("TARGET_GATEWAY_HOST")
+            if gw and gw != target_host:
+                target_host = gw
+            elif is_route_active(cidr, ""):
+                return True
+    except Exception:
+        pass
+
     if is_route_active(cidr, target_host):
         return True
 

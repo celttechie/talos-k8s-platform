@@ -15,6 +15,20 @@ Ensure your developer workstation has the required tools installed (`make doctor
 
 ---
 
+## 🚀 Deployment Target Strategies
+
+The platform supports two deployment strategies with a **100% identical downstream workflow**:
+
+| Strategy | Description | Configuration Command |
+| :--- | :--- | :--- |
+| **Direct Target (Default)** | Cluster is deployed directly onto a physical hypervisor (Dell T5600, Proxmox, Ubuntu Server, or Local KVM). | `make configure` (Choose Option `[1] Direct`) |
+| **Nested Sandbox (Stage 0)** | An isolated Ubuntu sandbox hypervisor VM (`sandbox-hypervisor-node`) is spun up on the host, and the cluster runs nested inside it. | `make configure` (Choose Option `[2] Nested Sandbox`) $\rightarrow$ `make stage0-apply` |
+
+> [!TIP]
+> When using **Nested Sandbox (Stage 0)**, running `make stage0-apply` automatically extracts the sandbox VM's IP address and syncs `target.env` and `01-talos-cluster/terraform.tfvars`. All downstream commands (`make preflight`, `make up`, `make status`, `make test-all`) run identically without manual config edits.
+
+---
+
 ## 🚀 Stand-Up Options
 
 ### Option 1: One-Command Lifecycle (`make up`)
@@ -22,8 +36,11 @@ For fast, automated stand-up of the entire platform:
 ```bash
 # 1. Audit local workstation & target host
 make doctor
-make configure
+make configure   # Select Direct [1] or Nested Sandbox [2]
 make preflight
+
+# (If Nested Sandbox mode): Provision Stage 0 VM & auto-sync target
+# make stage0-apply
 
 # 2. Deploy entire platform end-to-end
 make up
@@ -40,13 +57,11 @@ make down
 
 ### Option 2: Step-by-Step Staged Stand-Up (Learning / Debugging)
 
----
-
-### Step 2: Provision Virtual Infrastructure (Stages 0 & 1)
+### Step 1: Provision Infrastructure (Stages 0 & 1)
 ```bash
-# Provision Stage 0: Nested Sandbox Hypervisor (L1 VM) - Optional if target hypervisor exists
+# (Optional) Provision Stage 0: Nested Sandbox Hypervisor (L1 VM)
 make stage0-init
-make stage0-apply
+make stage0-apply   # Automatically syncs target to Stage 1!
 make verify-stage0
 
 # Provision Stage 1: Downstream Talos Nodes (L2 VMs)

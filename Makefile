@@ -46,7 +46,7 @@ doctor: ## Audit local workstation developer tools, CLI binaries, and git hooks
 	@python3 $(SCRIPTS_DIR)/doctor.py
 
 .PHONY: preflight
-preflight: ## Validate target hypervisor server (KVM, libvirtd, storage pools, bridges)
+preflight: ensure-route ## Validate target hypervisor server (KVM, libvirtd, storage pools, bridges)
 	@python3 $(SCRIPTS_DIR)/preflight_server.py --host $(TARGET_HOST)
 
 .PHONY: check-all
@@ -133,9 +133,14 @@ stage0-plan: ## Generate and review execution plan for Stage 0
 	terraform -chdir=$(STAGE0_DIR) plan
 
 .PHONY: stage0-apply
-stage0-apply: ## Provision Stage 0 Nested Sandbox VM hypervisor
+stage0-apply: ## Provision Stage 0 Nested Sandbox VM hypervisor & auto-sync target
 	@echo -e "$(GREEN)===> Applying Stage 0 Nested Sandbox infrastructure...$(RESET)"
 	terraform -chdir=$(STAGE0_DIR) apply
+	@python3 $(SCRIPTS_DIR)/sync_target.py
+
+.PHONY: sync-target
+sync-target: ## Synchronize Stage 0 Sandbox VM target details into target.env and Stage 1 tfvars
+	@python3 $(SCRIPTS_DIR)/sync_target.py
 
 .PHONY: verify-stage0
 verify-stage0: ## Run automated verification checks on Stage 0 sandbox hypervisor
