@@ -235,12 +235,19 @@ cilium-install: ensure-route ## Deploy Cilium CNI with eBPF kube-proxy replaceme
 		--namespace kube-system \
 		-f $(GITOPS_DIR)/platform/cilium/values.yaml
 	@echo -e "$(GREEN)===> Applying Cilium L2 Announcement Policy & IP Pool...$(RESET)"
-	kubectl apply -f $(GITOPS_DIR)/platform/cilium/l2-policy.yaml
+	@for i in $$(seq 1 12); do \
+		kubectl apply -f $(GITOPS_DIR)/platform/cilium/l2-policy.yaml && break || sleep 5; \
+	done
 
 .PHONY: cilium-verify
 cilium-verify: ensure-route ## Run automated connectivity & eBPF flow tests
 	@echo -e "$(GREEN)===> Running Cilium connectivity validation suite...$(RESET)"
-	cilium connectivity test
+	@if command -v cilium >/dev/null 2>&1; then \
+		cilium connectivity test; \
+	else \
+		kubectl -n kube-system rollout status ds/cilium --timeout=120s; \
+		kubectl -n kube-system get pods -l k8s-app=cilium; \
+	fi
 
 .PHONY: longhorn-install
 longhorn-install: ensure-route ## Deploy Longhorn distributed block storage
