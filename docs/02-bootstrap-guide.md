@@ -15,19 +15,30 @@ Ensure your developer workstation has the required tools installed (`make doctor
 
 ---
 
-## 🚀 Step-by-Step Stand-Up Procedure
+## 🚀 Stand-Up Options
 
-### Step 1: Workstation & Server Configuration
+### Option 1: One-Command Lifecycle (`make up`)
+For fast, automated stand-up of the entire platform:
 ```bash
-# 1. Audit local workstation toolchain
+# 1. Audit local workstation & target host
 make doctor
-
-# 2. Configure target deployment server (Dell T5600)
 make configure
-
-# 3. Validate target hypervisor (KVM, libvirtd, storage pools, network bridges)
 make preflight
+
+# 2. Deploy entire platform end-to-end
+make up
+
+# 3. Check cluster status & run tests
+make status
+make test-all
+
+# 4. Destroy cluster when finished
+make down
 ```
+
+---
+
+### Option 2: Step-by-Step Staged Stand-Up (Learning / Debugging)
 
 ---
 
