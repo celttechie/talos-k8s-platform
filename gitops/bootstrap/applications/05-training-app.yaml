@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: root-application
+  name: training-app
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -10,14 +10,13 @@ spec:
   source:
     repoURL: https://github.com/celttechie/talos-k8s-platform.git
     targetRevision: HEAD
-    path: gitops/bootstrap/applications
+    path: gitops/apps/training-app
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: training
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true

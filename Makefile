@@ -11,10 +11,13 @@ SHELL := /bin/bash
 # Paths
 STAGE0_DIR  := terraform/environments/00-sandbox-hypervisor
 STAGE1_DIR  := terraform/environments/01-talos-cluster
+STAGE2_DIR  := terraform/environments/02-talos-bootstrap
 TALOS_DIR   := talos
 GITOPS_DIR  := gitops
 SCRIPTS_DIR := scripts
 export KUBECONFIG ?= $(CURDIR)/kubeconfig
+
+TOFU_CMD    ?= $(shell command -v tofu 2>/dev/null || command -v terraform 2>/dev/null || echo tofu)
 
 -include target.env
 
@@ -213,6 +216,26 @@ talos-health: ensure-route ## Verify health of etcd, control plane components, a
 	@echo -e "$(GREEN)===> Auditing Talos cluster health...$(RESET)"
 	@python3 $(SCRIPTS_DIR)/bootstrap_cluster.py --health-only
 
+.PHONY: stage2-init
+stage2-init: ## Initialize OpenTofu / Terraform providers for Stage 2 Talos Bootstrap
+	@echo -e "$(GREEN)===> Initializing Stage 2 Talos Bootstrap...$(RESET)"
+	$(TOFU_CMD) -chdir=$(STAGE2_DIR) init
+
+.PHONY: stage2-plan
+stage2-plan: ensure-route ## Generate and review execution plan for Stage 2 Talos Bootstrap
+	@echo -e "$(GREEN)===> Planning Stage 2 Talos Bootstrap...$(RESET)"
+	$(TOFU_CMD) -chdir=$(STAGE2_DIR) plan
+
+.PHONY: stage2-apply
+stage2-apply: ensure-route ## Provision Stage 2 Talos PKI, machine configs, etcd bootstrap, and kubeconfig via OpenTofu
+	@echo -e "$(GREEN)===> Applying Stage 2 Talos Bootstrap via OpenTofu...$(RESET)"
+	$(TOFU_CMD) -chdir=$(STAGE2_DIR) apply -auto-approve
+
+.PHONY: stage2-destroy
+stage2-destroy: ## Destroy Stage 2 Talos Bootstrap state
+	@echo -e "$(RED)===> Destroying Stage 2 Talos Bootstrap state...$(RESET)"
+	$(TOFU_CMD) -chdir=$(STAGE2_DIR) destroy
+
 .PHONY: verify-stage2
 verify-stage2: ensure-route ## Run automated verification checks on Stage 2 Talos bootstrapping
 	@echo -e "$(GREEN)===> Running Stage 2 verification test suite...$(RESET)"
@@ -221,7 +244,6 @@ verify-stage2: ensure-route ## Run automated verification checks on Stage 2 Talo
 .PHONY: test-m2
 test-m2: ## Execute full Milestone 2 validation and verification test suite
 	@echo -e "$(GREEN)===> Running Milestone 2 Test Suite...$(RESET)"
-	@$(MAKE) talos-gen-config
 	@$(MAKE) verify-stage2
 
 ##@ 🌐 Stage 3: Platform Services (Cilium CNI & Longhorn CSI)
@@ -358,6 +380,12 @@ verify-stage5: ensure-route ## Run automated verification checks on Stage 5 Obse
 test-m6: ## Execute full Milestone 6 validation and verification test suite
 	@echo -e "$(GREEN)===> Running Milestone 6 Test Suite...$(RESET)"
 	@$(MAKE) verify-stage5
+
+.PHONY: test-m7
+test-m7: ## Execute full Milestone 7 OpenTofu Substrate & ArgoCD GitOps Self-Healing validation
+	@echo -e "$(GREEN)===> Running Milestone 7 Test Suite...$(RESET)"
+	@python3 $(SCRIPTS_DIR)/verify_stage4.py
+	@echo -e "$(GREEN)✓ Milestone 7 OpenTofu substrate & ArgoCD GitOps validation complete.$(RESET)"
 
 ##@ 🧪 Training Workload & Troubleshooting Drills
 
