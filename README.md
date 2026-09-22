@@ -20,10 +20,10 @@ This lab provides deep learning and practical drills for diagnosing real-world K
 flowchart TD
     subgraph Host ["Physical Hypervisor (Dell Precision T5600)"]
         T5600["Linux Host + KVM + Libvirt"]
-        
+
         subgraph Sandbox ["Stage 1: Nested Sandbox VM (L1)"]
             SB_VM["sandbox-hypervisor-node\n(Nested KVM Passthrough, Libvirtd, NAT virbr0)"]
-            
+
             subgraph K8s ["Stage 2: Talos Kubernetes Cluster (L2)"]
                 CP1["talos-cp-01 (Control Plane)\n2 vCPU | 2GB RAM | 20GB OS"]
                 W1["talos-worker-01 (Worker 1)\n2 vCPU | 3GB RAM | 20GB OS + 30GB Longhorn Disk"]

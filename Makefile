@@ -54,6 +54,14 @@ check-all: ## Execute both workstation doctor and target server preflight audits
 	@$(MAKE) doctor
 	@$(MAKE) preflight
 
+.PHONY: route
+route: ## Dynamically discover and configure local workstation route to cluster subnet
+	@python3 $(SCRIPTS_DIR)/ensure_route.py
+
+.PHONY: ensure-route
+ensure-route:
+	@python3 $(SCRIPTS_DIR)/ensure_route.py
+
 ##@ 🏗️ Stage 1: Nested Sandbox Hypervisor (01-nested-sandbox)
 
 .PHONY: stage1-init
@@ -123,27 +131,27 @@ talos-gen-config: ## Generate declarative Talos machine configurations with patc
 	@bash $(SCRIPTS_DIR)/generate_talos_config.sh
 
 .PHONY: talos-apply-config
-talos-apply-config: ## Apply declarative machine configs to Control Plane & Worker nodes
+talos-apply-config: ensure-route ## Apply declarative machine configs to Control Plane & Worker nodes
 	@echo -e "$(GREEN)===> Applying Talos machine configurations...$(RESET)"
 	@python3 $(SCRIPTS_DIR)/bootstrap_cluster.py --apply-only
 
 .PHONY: talos-bootstrap
-talos-bootstrap: ## Bootstrap etcd quorum and initialize upstream control plane
+talos-bootstrap: ensure-route ## Bootstrap etcd quorum and initialize upstream control plane
 	@echo -e "$(GREEN)===> Bootstrapping Talos Kubernetes control plane...$(RESET)"
 	@python3 $(SCRIPTS_DIR)/bootstrap_cluster.py --bootstrap-only
 
 .PHONY: talos-kubeconfig
-talos-kubeconfig: ## Extract admin kubeconfig from Talos control plane
+talos-kubeconfig: ensure-route ## Extract admin kubeconfig from Talos control plane
 	@echo -e "$(GREEN)===> Extracting admin kubeconfig...$(RESET)"
 	@python3 $(SCRIPTS_DIR)/bootstrap_cluster.py --kubeconfig-only
 
 .PHONY: talos-health
-talos-health: ## Verify health of etcd, control plane components, and nodes
+talos-health: ensure-route ## Verify health of etcd, control plane components, and nodes
 	@echo -e "$(GREEN)===> Auditing Talos cluster health...$(RESET)"
 	@python3 $(SCRIPTS_DIR)/bootstrap_cluster.py --health-only
 
 .PHONY: verify-stage3
-verify-stage3: ## Run automated verification checks on Stage 3 Talos bootstrapping
+verify-stage3: ensure-route ## Run automated verification checks on Stage 3 Talos bootstrapping
 	@echo -e "$(GREEN)===> Running Stage 3 verification test suite...$(RESET)"
 	@python3 $(SCRIPTS_DIR)/verify_stage3.py
 
@@ -157,7 +165,7 @@ test-m2: ## Execute full Milestone 2 validation and verification test suite
 ##@ 🌐 Stage 4: Platform Services (Cilium CNI & Longhorn CSI)
 
 .PHONY: cilium-install
-cilium-install: ## Deploy Cilium CNI with eBPF kube-proxy replacement and L2 policies
+cilium-install: ensure-route ## Deploy Cilium CNI with eBPF kube-proxy replacement and L2 policies
 	@echo -e "$(GREEN)===> Deploying Cilium CNI via Helm...$(RESET)"
 	helm repo add cilium https://helm.cilium.io/ 2>/dev/null || true
 	helm repo update cilium
@@ -168,12 +176,12 @@ cilium-install: ## Deploy Cilium CNI with eBPF kube-proxy replacement and L2 pol
 	kubectl apply -f $(GITOPS_DIR)/platform/cilium/l2-policy.yaml
 
 .PHONY: cilium-verify
-cilium-verify: ## Run automated connectivity & eBPF flow tests
+cilium-verify: ensure-route ## Run automated connectivity & eBPF flow tests
 	@echo -e "$(GREEN)===> Running Cilium connectivity validation suite...$(RESET)"
 	cilium connectivity test
 
 .PHONY: longhorn-install
-longhorn-install: ## Deploy Longhorn distributed block storage
+longhorn-install: ensure-route ## Deploy Longhorn distributed block storage
 	@echo -e "$(GREEN)===> Deploying Longhorn CSI storage engine...$(RESET)"
 	kubectl create namespace longhorn-system --dry-run=client -o yaml | kubectl apply -f -
 	kubectl label namespace longhorn-system pod-security.kubernetes.io/enforce=privileged pod-security.kubernetes.io/audit=privileged pod-security.kubernetes.io/warn=privileged --overwrite
@@ -184,7 +192,7 @@ longhorn-install: ## Deploy Longhorn distributed block storage
 		-f $(GITOPS_DIR)/platform/longhorn/values.yaml
 
 .PHONY: verify-stage4
-verify-stage4: ## Run automated verification checks on Stage 4 Cilium and Longhorn
+verify-stage4: ensure-route ## Run automated verification checks on Stage 4 Cilium and Longhorn
 	@echo -e "$(GREEN)===> Running Stage 4 verification test suite...$(RESET)"
 	@python3 $(SCRIPTS_DIR)/verify_stage4.py
 
@@ -197,7 +205,7 @@ test-m3: ## Execute full Milestone 3 validation and verification test suite
 ##@ 📊 Observability & Monitoring (Prometheus, Grafana & Hubble)
 
 .PHONY: monitoring-install
-monitoring-install: ## Deploy kube-prometheus-stack, Alert Rules & Grafana Dashboards
+monitoring-install: ensure-route ## Deploy kube-prometheus-stack, Alert Rules & Grafana Dashboards
 	@echo -e "$(GREEN)===> Deploying kube-prometheus-stack...$(RESET)"
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
 	helm repo update prometheus-community
@@ -209,27 +217,27 @@ monitoring-install: ## Deploy kube-prometheus-stack, Alert Rules & Grafana Dashb
 	kubectl apply -f $(GITOPS_DIR)/platform/monitoring/dashboards/ --namespace monitoring
 
 .PHONY: hubble-ui
-hubble-ui: ## Port-forward Cilium Hubble UI to http://localhost:12000
+hubble-ui: ensure-route ## Port-forward Cilium Hubble UI to http://localhost:12000
 	@echo -e "$(GREEN)===> Port-forwarding Hubble UI to http://localhost:12000...$(RESET)"
 	kubectl port-forward -n kube-system svc/hubble-ui 12000:80
 
 .PHONY: grafana
-grafana: ## Port-forward Grafana dashboard to http://localhost:3000 (admin / prom-operator)
+grafana: ensure-route ## Port-forward Grafana dashboard to http://localhost:3000 (admin / prom-operator)
 	@echo -e "$(GREEN)===> Port-forwarding Grafana to http://localhost:3000...$(RESET)"
 	kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
 
 .PHONY: argocd
-argocd: ## Port-forward ArgoCD UI to https://localhost:8080
+argocd: ensure-route ## Port-forward ArgoCD UI to https://localhost:8080
 	@echo -e "$(GREEN)===> Port-forwarding ArgoCD UI to https://localhost:8080...$(RESET)"
 	kubectl port-forward -n argocd svc/argocd-server 8080:443
 
 .PHONY: longhorn
-longhorn: ## Port-forward Longhorn storage UI to http://localhost:8000
+longhorn: ensure-route ## Port-forward Longhorn storage UI to http://localhost:8000
 	@echo -e "$(GREEN)===> Port-forwarding Longhorn UI to http://localhost:8000...$(RESET)"
 	kubectl port-forward -n longhorn-system svc/longhorn-frontend 8000:80
 
 .PHONY: verify-stage6
-verify-stage6: ## Run automated verification checks on Stage 6 Observability Stack
+verify-stage6: ensure-route ## Run automated verification checks on Stage 6 Observability Stack
 	@echo -e "$(GREEN)===> Running Stage 6 verification test suite...$(RESET)"
 	@python3 $(SCRIPTS_DIR)/verify_stage6.py
 
@@ -242,12 +250,12 @@ test-m6: ## Execute full Milestone 6 validation and verification test suite
 ##@ 🧪 Training Workload & Troubleshooting Drills
 
 .PHONY: workload-install
-workload-install: ## Deploy multi-tier communicating training application
+workload-install: ensure-route ## Deploy multi-tier communicating training application
 	@echo -e "$(GREEN)===> Deploying training workload microservices...$(RESET)"
 	kubectl apply -k $(GITOPS_DIR)/apps/training-app
 
 .PHONY: workload-destroy
-workload-destroy: ## Delete training workload microservices
+workload-destroy: ensure-route ## Delete training workload microservices
 	@echo -e "$(YELLOW)===> Deleting training workload microservices...$(RESET)"
 	kubectl delete -k $(GITOPS_DIR)/apps/training-app --ignore-not-found
 
@@ -258,15 +266,15 @@ drill-list: ## Display catalog of all available troubleshooting drills
 	@python3 $(SCRIPTS_DIR)/drill_manager.py --list
 
 .PHONY: drill-inject
-drill-inject: ## Inject a specific failure scenario (usage: make drill-inject SCENARIO=<id>)
+drill-inject: ensure-route ## Inject a specific failure scenario (usage: make drill-inject SCENARIO=<id>)
 	@python3 $(SCRIPTS_DIR)/drill_manager.py --inject $(SCENARIO)
 
 .PHONY: drill-verify
-drill-verify: ## Verify symptoms of an active scenario (usage: make drill-verify SCENARIO=<id>)
+drill-verify: ensure-route ## Verify symptoms of an active scenario (usage: make drill-verify SCENARIO=<id>)
 	@python3 $(SCRIPTS_DIR)/drill_manager.py --verify $(SCENARIO)
 
 .PHONY: drill-heal
-drill-heal: ## Restore healthy state (usage: make drill-heal SCENARIO=<id> or SCENARIO=all)
+drill-heal: ensure-route ## Restore healthy state (usage: make drill-heal SCENARIO=<id> or SCENARIO=all)
 	@python3 $(SCRIPTS_DIR)/drill_manager.py --heal $(if $(SCENARIO),$(SCENARIO),all)
 
 .PHONY: verify-drills
@@ -335,4 +343,3 @@ clean: ## Clean up temporary files, caches, and test artifacts
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	find . -type f -name ".terraform.tfstate.lock.info" -delete 2>/dev/null || true
 	@echo -e "$(GREEN)Clean complete.$(RESET)"
-

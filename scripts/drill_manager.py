@@ -25,7 +25,9 @@ SCENARIOS = {
         "description": "Injects a memory leak loop into queue-worker causing it to exceed memory limit.",
         "inject_cmds": [
             """kubectl set env deployment/queue-worker -n training INJECT_LEAK=true --overwrite""",
-            """kubectl patch deployment queue-worker -n training --type='json' -p='[{"op":"replace","path":"/spec/template/spec/containers/0/command","value":["/bin/sh","-c","python3 -c \\"import time; b=[]; print(\'Leaking memory...\'); [b.append(\'X\'*1024*1024) or time.sleep(0.1) for _ in range(500)]\\""]}]'"""
+            """cat << 'EOF' | kubectl patch deployment queue-worker -n training --type='json' --patch-file /dev/stdin
+[{"op":"replace","path":"/spec/template/spec/containers/0/command","value":["/bin/sh","-c","python3 -c \\"import time; b=[]; print('Leaking memory...'); [b.append('X'*1024*1024) or time.sleep(0.1) for _ in range(500)]\\""]}]
+EOF"""
         ],
         "heal_cmds": [
             """kubectl rollout undo deployment/queue-worker -n training"""
@@ -35,12 +37,12 @@ SCENARIOS = {
     "comp-cpu-throttling": {
         "domain": "Compute",
         "title": "CFS CPU Quota Throttling",
-        "description": "Constrains order-api CPU limits to 10m while executing intensive operations.",
+        "description": "Constrains order-api CPU limits to 50m while executing intensive operations.",
         "inject_cmds": [
-            """kubectl patch deployment order-api -n training --type='json' -p='[{"op":"replace","path":"/spec/template/spec/containers/0/resources/limits/cpu","value":"10m"}]'"""
+            """kubectl patch deployment order-api -n training --type='json' -p='[{"op":"replace","path":"/spec/template/spec/containers/0/resources/requests/cpu","value":"50m"},{"op":"replace","path":"/spec/template/spec/containers/0/resources/limits/cpu","value":"50m"}]'"""
         ],
         "heal_cmds": [
-            """kubectl patch deployment order-api -n training --type='json' -p='[{"op":"replace","path":"/spec/template/spec/containers/0/resources/limits/cpu","value":"500m"}]'"""
+            """kubectl patch deployment order-api -n training --type='json' -p='[{"op":"replace","path":"/spec/template/spec/containers/0/resources/requests/cpu","value":"100m"},{"op":"replace","path":"/spec/template/spec/containers/0/resources/limits/cpu","value":"500m"}]'"""
         ],
         "symptoms": "High p95 latency on order-api, Grafana CPU throttling metric > 80%."
     },
@@ -164,36 +166,81 @@ def list_drills():
     print(f"  {BOLD}make drill-heal SCENARIO=<id>{RESET}     -> Restore healthy state\n")
 
 
+def pause_argocd_sync():
+    """Temporarily pause ArgoCD automated sync and self-heal so faults persist for inspection."""
+    run_cmd(
+        "kubectl patch application root-application -n argocd --type='merge' -p='{\"spec\":{\"syncPolicy\":null}}' 2>/dev/null || true",
+        check=False, capture=True
+    )
+
+
+def resume_argocd_sync():
+    """Re-enable ArgoCD automated sync and self-heal."""
+    run_cmd(
+        "kubectl patch application root-application -n argocd --type='merge' -p='{\"spec\":{\"syncPolicy\":{\"automated\":{\"prune\":true,\"selfHeal\":true}}}}' 2>/dev/null || true",
+        check=False, capture=True
+    )
+
+
 def inject_drill(sc_id: str):
     if sc_id not in SCENARIOS:
         print(f"{RED}Error: Unknown scenario ID '{sc_id}'. Run --list for options.{RESET}")
         sys.exit(1)
     scenario = SCENARIOS[sc_id]
     print(f"\n{BOLD}{YELLOW}>>> Injecting Failure Scenario: {sc_id} ({scenario['title']}){RESET}")
+
+    # Temporarily suspend GitOps auto-remediation so the fault persists
+    pause_argocd_sync()
+
+    all_success = True
     for cmd in scenario["inject_cmds"]:
         res = run_cmd(cmd)
         if res.returncode != 0:
-            print(f"{YELLOW}Warning executing injection: {res.stderr.strip()}{RESET}")
-    print(f"{GREEN}✓ Scenario '{sc_id}' successfully injected!{RESET}")
-    print(f"{BOLD}Expected Symptoms:{RESET} {scenario['symptoms']}")
-    print(f"Refer to diagnostic runbook in: {BOLD}docs/troubleshooting-drills/{RESET}\n")
+            if res.stderr:
+                print(f"{YELLOW}Warning executing injection: {res.stderr.strip()}{RESET}")
+            all_success = False
+    if all_success:
+        print(f"{GREEN}✓ Scenario '{sc_id}' successfully injected!{RESET}")
+        print(f"{BOLD}Expected Symptoms:{RESET} {scenario['symptoms']}")
+        print(f"Refer to diagnostic runbook in: {BOLD}docs/troubleshooting-drills/{RESET}\n")
+    else:
+        print(f"{RED}✗ Scenario '{sc_id}' injection encountered errors (see above).{RESET}\n")
+        sys.exit(1)
 
 
 def heal_drill(sc_id: str):
     if sc_id == "all":
         print(f"\n{BOLD}{GREEN}>>> Healing all drill scenarios...{RESET}")
+        has_error = False
         for s_id in SCENARIOS:
-            heal_drill(s_id)
+            if not heal_drill_single(s_id):
+                has_error = True
+        resume_argocd_sync()
+        if has_error:
+            sys.exit(1)
         return
 
     if sc_id not in SCENARIOS:
         print(f"{RED}Error: Unknown scenario ID '{sc_id}'.{RESET}")
         sys.exit(1)
+    if not heal_drill_single(sc_id):
+        sys.exit(1)
+    resume_argocd_sync()
+
+
+def heal_drill_single(sc_id: str) -> bool:
     scenario = SCENARIOS[sc_id]
     print(f"{BLUE}Healing Scenario: {sc_id}...{RESET}")
+    all_success = True
     for cmd in scenario["heal_cmds"]:
-        run_cmd(cmd)
-    print(f"{GREEN}✓ Scenario '{sc_id}' healed.{RESET}")
+        res = run_cmd(cmd)
+        if res.returncode != 0:
+            all_success = False
+    if all_success:
+        print(f"{GREEN}✓ Scenario '{sc_id}' healed.{RESET}")
+    else:
+        print(f"{RED}✗ Failed to heal Scenario '{sc_id}'.{RESET}")
+    return all_success
 
 
 def verify_drill(sc_id: str):

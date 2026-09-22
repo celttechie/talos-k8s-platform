@@ -79,4 +79,3 @@ module "worker_02" {
   network_name         = var.network_name
   mac_address          = var.worker_02_mac
 }
-

@@ -74,4 +74,3 @@ resource "libvirt_domain" "node" {
     autoport    = true
   }
 }
-

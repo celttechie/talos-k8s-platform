@@ -2,7 +2,7 @@
 <!-- Provide a clear, concise summary of the changes made and the motivation behind them. -->
 
 ## Associated Milestone & Issues
-- Milestone: 
+- Milestone:
 - Fixes/Closes: #
 
 ## Architecture Decisions (ADR)

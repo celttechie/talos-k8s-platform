@@ -17,6 +17,7 @@ from common import (
     RED,
     RESET,
     YELLOW,
+    get_cluster_cidr,
     get_target_host,
 )
 
@@ -72,23 +73,29 @@ def check_workstation_network():
     if not target_host or target_host in ("127.0.0.1", "localhost"):
         return
 
-    try:
-        # Check if local virbr0 conflicts with 192.168.122.x
-        addr_res = subprocess.run(["ip", "addr", "show", "virbr0"], capture_output=True, text=True)
-        has_virbr0_122 = "192.168.122." in addr_res.stdout
+    cidr = get_cluster_cidr()
+    if not cidr:
+        CHECKS.append(("Cluster Subnet Routing", True, f"{YELLOW}SKIPPED (Subnet uninitialized){RESET}", "Workstation VM Access"))
+        return
 
-        # Check if route to 192.168.122.0/24 exists via target_host
-        route_res = subprocess.run(["ip", "route", "show", "192.168.122.0/24"], capture_output=True, text=True)
+    try:
+        prefix = cidr.rsplit(".", 1)[0]
+        # Check if local virbr0 conflicts with cluster prefix
+        addr_res = subprocess.run(["ip", "addr", "show", "virbr0"], capture_output=True, text=True)
+        has_virbr0_conflict = prefix in addr_res.stdout
+
+        # Check if route to cluster CIDR exists via target_host
+        route_res = subprocess.run(["ip", "route", "show", cidr], capture_output=True, text=True)
         route_out = route_res.stdout.strip()
 
-        if has_virbr0_122:
-            status = f"{YELLOW}LOCAL CONFLICT (virbr0 on 192.168.122.1/24 collides with cluster){RESET}"
+        if has_virbr0_conflict:
+            status = f"{YELLOW}LOCAL CONFLICT (virbr0 on local host collides with cluster subnet {cidr}){RESET}"
             CHECKS.append(("Cluster Subnet Routing", False, status, "Workstation VM Access"))
-        elif target_host in route_out or ("via" in route_out and "192.168.122.0/24" in route_out):
-            status = f"{GREEN}ROUTED{RESET} (via {target_host})"
+        elif target_host in route_out or ("via" in route_out and target_host in route_out):
+            status = f"{GREEN}ROUTED{RESET} ({cidr} via {target_host})"
             CHECKS.append(("Cluster Subnet Routing", True, status, "Workstation VM Access"))
         else:
-            status = f"{YELLOW}ROUTE MISSING (`sudo ip route replace 192.168.122.0/24 via {target_host}`){RESET}"
+            status = f"{YELLOW}ROUTE MISSING (`make route` or `sudo ip route replace {cidr} via {target_host}`){RESET}"
             CHECKS.append(("Cluster Subnet Routing", False, status, "Workstation VM Access"))
     except Exception as e:
         CHECKS.append(("Cluster Subnet Routing", True, f"{YELLOW}SKIPPED ({e}){RESET}", "Workstation VM Access"))

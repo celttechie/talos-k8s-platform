@@ -87,4 +87,3 @@ variable "worker_02_mac" {
   type        = string
   default     = "52:54:00:10:00:22"
 }
-

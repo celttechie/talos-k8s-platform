@@ -5,6 +5,7 @@ Provides unified target host resolution, Terraform output parsing, TCP connectiv
 probing with SSH fallback, subprocess execution, and standardized test reporting.
 """
 
+import ipaddress
 import json
 import os
 import re
@@ -119,7 +120,85 @@ def get_terraform_outputs(environment_name, repo_root=None):
         return None
 
 
-def run_cmd(cmd, check=True, capture=True, timeout=None, shell=True):
+def get_cluster_cidr(repo_root=None):
+    """Dynamically determine the cluster CIDR without hardcoding or assuming subnets.
+
+    Discovery precedence:
+    1. TARGET_CLUSTER_CIDR declared in target.env or environment variable
+    2. Control plane or worker IPs from Terraform 02-talos-cluster outputs
+    3. Server endpoint IP parsed from kubeconfig
+    4. Sandbox hypervisor IP from Terraform 01-nested-sandbox outputs
+    5. Query remote libvirt network XML from target hypervisor via SSH
+
+    Returns:
+        str or None: Subnet in CIDR format (e.g. '192.168.122.0/24') or None if undetected.
+    """
+    if os.getenv("TARGET_CLUSTER_CIDR"):
+        return os.getenv("TARGET_CLUSTER_CIDR")
+
+    if repo_root is None:
+        repo_root = get_repo_root()
+
+    # 1. Check target.env
+    target_env = load_target_env(os.path.join(repo_root, "target.env"))
+    if target_env.get("TARGET_CLUSTER_CIDR"):
+        return target_env["TARGET_CLUSTER_CIDR"]
+
+    # 2. Check 02-talos-cluster Terraform outputs
+    tf2_out = get_terraform_outputs("02-talos-cluster", repo_root=repo_root)
+    if tf2_out:
+        cp_ip = None
+        if "cluster_endpoints" in tf2_out and isinstance(tf2_out["cluster_endpoints"].get("value"), dict):
+            cp_ip = tf2_out["cluster_endpoints"]["value"].get("controlplane_ip")
+        elif "controlplane_nodes" in tf2_out and isinstance(tf2_out["controlplane_nodes"].get("value"), dict):
+            cp_ip = tf2_out["controlplane_nodes"]["value"].get("ip_address")
+        if cp_ip:
+            return str(ipaddress.IPv4Interface(f"{cp_ip}/24").network)
+
+    # 3. Check kubeconfig
+    kubeconfig_path = os.path.join(repo_root, "kubeconfig")
+    if os.path.exists(kubeconfig_path):
+        try:
+            with open(kubeconfig_path, "r") as f:
+                content = f.read()
+            match = re.search(r"server:\s*https?://([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)", content)
+            if match:
+                server_ip = match.group(1)
+                if not server_ip.startswith("127."):
+                    return str(ipaddress.IPv4Interface(f"{server_ip}/24").network)
+        except Exception:
+            pass
+
+    # 4. Check 01-nested-sandbox Terraform outputs
+    tf1_out = get_terraform_outputs("01-nested-sandbox", repo_root=repo_root)
+    if tf1_out and "sandbox_ip_address" in tf1_out:
+        sb_ip = tf1_out["sandbox_ip_address"].get("value")
+        if sb_ip:
+            return str(ipaddress.IPv4Interface(f"{sb_ip}/24").network)
+
+    # 5. Fallback: Query target hypervisor libvirt network definition via SSH
+    target_host = get_target_host(repo_root=repo_root)
+    if target_host and target_host not in ("127.0.0.1", "localhost"):
+        try:
+            cmd = [
+                "ssh", "-o", "ConnectTimeout=3", "-o", "StrictHostKeyChecking=no",
+                "-o", "BatchMode=yes", target_host,
+                "virsh -c qemu:///system net-dumpxml default 2>/dev/null || virsh net-dumpxml default 2>/dev/null"
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            if res.returncode == 0 and "<ip" in res.stdout:
+                ip_match = re.search(r"<ip\s+address=['\"]([^'\"]+)['\"](?:\s+netmask=['\"]([^'\"]+)['\"])?", res.stdout)
+                if ip_match:
+                    ip_addr = ip_match.group(1)
+                    netmask = ip_match.group(2) or "255.255.255.0"
+                    return str(ipaddress.IPv4Network(f"{ip_addr}/{netmask}", strict=False))
+        except Exception:
+            pass
+
+    return None
+
+
+def run_cmd(cmd, check=True, capture=True, timeout=None, shell=True, env=None):
     """Execute a system command and return CompletedProcess.
 
     Args:
@@ -128,12 +207,19 @@ def run_cmd(cmd, check=True, capture=True, timeout=None, shell=True):
         capture (bool): If True, captures stdout and stderr.
         timeout (int, optional): Timeout in seconds.
         shell (bool): Run command through shell.
+        env (dict, optional): Custom environment variables.
 
     Returns:
         subprocess.CompletedProcess: Result of command execution.
     """
+    cmd_env = env or os.environ.copy()
+    if "KUBECONFIG" not in cmd_env:
+        kc_path = os.path.join(get_repo_root(), "kubeconfig")
+        if os.path.exists(kc_path):
+            cmd_env["KUBECONFIG"] = kc_path
+
     try:
-        res = subprocess.run(cmd, shell=shell, text=True, capture_output=capture, timeout=timeout)
+        res = subprocess.run(cmd, shell=shell, text=True, capture_output=capture, timeout=timeout, env=cmd_env)
         if check and res.returncode != 0:
             if capture and res.stderr:
                 print(f"{RED}Command failed: {cmd}\n{res.stderr.strip()}{RESET}")

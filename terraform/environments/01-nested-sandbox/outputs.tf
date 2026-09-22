@@ -22,4 +22,3 @@ output "ssh_command" {
   description = "Convenience SSH command to connect to the sandbox hypervisor."
   value       = "ssh ${var.admin_user}@${length(libvirt_domain.sandbox_hypervisor.network_interface[0].addresses) > 0 ? libvirt_domain.sandbox_hypervisor.network_interface[0].addresses[0] : "<sandbox-ip>"}"
 }
-
