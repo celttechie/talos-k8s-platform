@@ -43,6 +43,16 @@ def main():
             valid, msg = validate_yaml_file(path)
             reporter.record(f"{name} YAML Schema", valid, msg)
 
+    # 1b. Validate ArgoCD App-of-Apps Child Applications
+    apps_dir = os.path.join(REPO_ROOT, "gitops", "bootstrap", "applications")
+    if os.path.exists(apps_dir):
+        app_files = sorted([f for f in os.listdir(apps_dir) if f.endswith(".yaml") or f.endswith(".yml")])
+        reporter.record("ArgoCD Child Applications Directory", len(app_files) >= 4, f"Found {len(app_files)} declarative child applications")
+        for app_file in app_files:
+            app_path = os.path.join(apps_dir, app_file)
+            valid, msg = validate_yaml_file(app_path)
+            reporter.record(f"App-of-Apps Child ({app_file})", valid, msg)
+
     # 2. Verify Training App Kustomize Build
     if os.path.exists(TRAINING_APP_DIR):
         res = subprocess.run(["kubectl", "kustomize", TRAINING_APP_DIR], capture_output=True, text=True)
