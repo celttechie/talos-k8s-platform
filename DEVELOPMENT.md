@@ -69,46 +69,49 @@ Infrastructure provisioning is structured into sequential, independently verifia
 
 ```bash
 # -------------------------------------------------------------
-# Stage 1: Nested Sandbox Hypervisor (L1 VM)
+# Stage 0: Nested Sandbox Hypervisor (L1 VM) - Optional
+# -------------------------------------------------------------
+make stage0-init
+make stage0-plan
+make stage0-apply
+make verify-stage0
+
+# -------------------------------------------------------------
+# Stage 1: Talos Downstream Cluster (L2 VMs)
 # -------------------------------------------------------------
 make stage1-init
 make stage1-plan
 make stage1-apply
+make verify-stage1
 
 # -------------------------------------------------------------
-# Stage 2: Talos Downstream Cluster (L2 VMs)
-# -------------------------------------------------------------
-make stage2-init
-make stage2-plan
-make stage2-apply
-
-# -------------------------------------------------------------
-# Stage 3: Talos OS & Control Plane Bootstrapping
+# Stage 2: Talos OS & Control Plane Bootstrapping
 # -------------------------------------------------------------
 make talos-gen-config
 make talos-bootstrap
 make talos-kubeconfig
 make talos-health
+make verify-stage2
 
 # -------------------------------------------------------------
-# Stage 4: Platform Services (Cilium eBPF & Longhorn Storage)
+# Stage 3: Platform Services (Cilium eBPF & Longhorn Storage)
 # -------------------------------------------------------------
 make cilium-install
 make longhorn-install
-make verify-stage4
+make verify-stage3
 
 # -------------------------------------------------------------
-# Stage 5: GitOps Delivery & Training Workloads
+# Stage 4: GitOps Delivery & Training Workloads
 # -------------------------------------------------------------
 make gitops-bootstrap
 make workload-install
-make verify-stage5
+make verify-stage4
 
 # -------------------------------------------------------------
-# Stage 6: Observability (Prometheus, Grafana & Hubble)
+# Stage 5: Observability (Prometheus, Grafana & Hubble)
 # -------------------------------------------------------------
 make monitoring-install
-make verify-stage6
+make verify-stage5
 
 # -------------------------------------------------------------
 # Fault Injection Drills & Disaster Recovery

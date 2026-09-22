@@ -21,10 +21,10 @@ flowchart TD
     subgraph Host ["Physical Hypervisor (Dell Precision T5600)"]
         T5600["Linux Host + KVM + Libvirt"]
 
-        subgraph Sandbox ["Stage 1: Nested Sandbox VM (L1)"]
+        subgraph Sandbox ["Stage 0: Nested Sandbox VM (L1) - Optional"]
             SB_VM["sandbox-hypervisor-node\n(Nested KVM Passthrough, Libvirtd, NAT virbr0)"]
 
-            subgraph K8s ["Stage 2: Talos Kubernetes Cluster (L2)"]
+            subgraph K8s ["Stage 1: Talos Kubernetes Cluster (L2)"]
                 CP1["talos-cp-01 (Control Plane)\n2 vCPU | 2GB RAM | 20GB OS"]
                 W1["talos-worker-01 (Worker 1)\n2 vCPU | 3GB RAM | 20GB OS + 30GB Longhorn Disk"]
                 W2["talos-worker-02 (Worker 2)\n2 vCPU | 3GB RAM | 20GB OS + 30GB Longhorn Disk"]
@@ -67,12 +67,12 @@ All project milestones (M1–M6) are fully implemented and undergoing active ver
 
 | Milestone | Scope & Deliverables | Verification Suite | Status |
 | :--- | :--- | :--- | :--- |
-| **M1: Foundation & Virtualization** | Terraform modules for L1 Sandbox Hypervisor and L2 Talos VMs | `make test-m1` | ✅ **Complete & Verified** |
-| **M2: Talos OS & Bootstrapping** | Machine configs, Cilium/storage patches, etcd quorum, `talosctl` | `make test-m2` | ✅ **Complete & Verified** |
-| **M3: Networking & Storage** | Cilium eBPF, Hubble UI, L2 Announcements, Longhorn CSI | `make test-m3` | ✅ **Complete & Verified** |
-| **M4: GitOps & Workloads** | ArgoCD App-of-Apps, External Secrets, CloudNativePG, Training App | `make test-m4` | ✅ **Complete & Verified** |
+| **M1: Foundation & Virtualization** | Terraform modules for L1 Sandbox Hypervisor (Stage 0) and L2 Talos VMs (Stage 1) | `make test-m1` | ✅ **Complete & Verified** |
+| **M2: Talos OS & Bootstrapping** | Machine configs, Cilium/storage patches, etcd quorum, `talosctl` (Stage 2) | `make test-m2` | ✅ **Complete & Verified** |
+| **M3: Networking & Storage** | Cilium eBPF, Hubble UI, L2 Announcements, Longhorn CSI (Stage 3) | `make test-m3` | ✅ **Complete & Verified** |
+| **M4: GitOps & Workloads** | ArgoCD App-of-Apps, External Secrets, Training App (Stage 4) | `make test-m4` | ✅ **Complete & Verified** |
 | **M5: Troubleshooting Drills & Lab** | Fault injection CLI, 4-phase diagnostic runbooks, DR drills | `make test-m5` | ✅ **Complete & Verified** |
-| **M6: Observability Platform** | `kube-prometheus-stack`, Prometheus Operator, Grafana Dashboards | `make test-m6` | ✅ **Complete & Verified** |
+| **M6: Observability Platform** | `kube-prometheus-stack`, Prometheus Operator, Grafana Dashboards (Stage 5) | `make test-m6` | ✅ **Complete & Verified** |
 
 ---
 
@@ -88,28 +88,31 @@ make doctor
 make configure
 make preflight
 
-# 3. Provision Infrastructure (Stages 1 & 2)
+# 3. Provision Infrastructure (Stage 0 Sandbox Hypervisor & Stage 1 Talos VMs)
+# Note: Stage 0 is optional if you already have a target hypervisor.
+make stage0-apply && make verify-stage0
 make stage1-apply && make verify-stage1
-make stage2-apply && make verify-stage2
 
-# 4. Generate Machine Configs & Bootstrap Talos Control Plane
+# 4. Generate Machine Configs & Bootstrap Talos Control Plane (Stage 2)
 make talos-gen-config
 make talos-apply-config
 make talos-bootstrap
 make talos-kubeconfig
 make talos-health
-make verify-stage3
+make verify-stage2
 
-# 5. Deploy Networking (Cilium eBPF) & Dynamic Storage (Longhorn)
+# 5. Deploy Networking (Cilium eBPF) & Dynamic Storage (Longhorn) (Stage 3)
 make cilium-install
 make longhorn-install
+make verify-stage3
+
+# 6. Deploy GitOps & Training Microservices (Stage 4)
+make workload-install
 make verify-stage4
 
-# 6. Deploy Training Microservices & Observability Stack
-make workload-install
+# 7. Deploy Observability Stack (Stage 5)
 make monitoring-install
 make verify-stage5
-make verify-stage6
 ```
 
 ---

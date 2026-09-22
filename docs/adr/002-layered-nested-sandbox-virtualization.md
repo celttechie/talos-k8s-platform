@@ -8,8 +8,8 @@ Deploying multi-node Kubernetes clusters directly on a bare-metal hypervisor hos
 
 ## Decision
 We implement a **Two-Stage Layered Sandbox Virtualization Model**:
-1. **Stage 1 (`01-nested-sandbox`)**: Provisions an L1 "Sandbox Hypervisor VM" (`sandbox-hypervisor-node`) on the physical host with `host-passthrough` CPU virtualization (Nested KVM). Cloud-init configures `libvirtd`, AppArmor boundaries, and isolated NAT networking (`virbr0` / `192.168.122.0/24`).
-2. **Stage 2 (`02-talos-cluster`)**: Connects remotely to the sandbox hypervisor daemon (`qemu+ssh://ubuntu@<sandbox-ip>/system`) and provisions the downstream L2 Talos Control Plane and Worker VMs inside the private sandbox network.
+1. **Stage 0 (`00-sandbox-hypervisor`)**: (Optional) Provisions an L1 "Sandbox Hypervisor VM" (`sandbox-hypervisor-node`) on the physical host with `host-passthrough` CPU virtualization (Nested KVM). Cloud-init configures `libvirtd`, AppArmor boundaries, and isolated NAT networking (`virbr0` / `192.168.122.0/24`). If a user already has an existing target hypervisor, they can bypass Stage 0.
+2. **Stage 1 (`01-talos-cluster`)**: Connects remotely to the target hypervisor daemon (`qemu+ssh://ubuntu@<sandbox-ip>/system` or direct `qemu+ssh://user@<target-host>/system`) and provisions the downstream Talos Control Plane and Worker VMs inside the private cluster network.
 
 ## Consequences
 - **Positive:** Complete blast-radius containment: the entire cluster can be destroyed, snapshotted, or rebuilt without modifying the physical T5600 host.

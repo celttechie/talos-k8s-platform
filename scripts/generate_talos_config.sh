@@ -15,12 +15,12 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # Configuration defaults
 CLUSTER_NAME="${CLUSTER_NAME:-talos-k8s-platform}"
 if [[ -z "${CONTROL_PLANE_IP:-}" ]]; then
-    if [[ -d "${REPO_ROOT}/terraform/environments/02-talos-cluster" ]]; then
+    if [[ -d "${REPO_ROOT}/terraform/environments/01-talos-cluster" ]]; then
         DETECTED_CP_IP=$(python3 -c '
 import json, os, subprocess
 try:
     repo = os.environ.get("REPO_ROOT", ".")
-    res = subprocess.run(["terraform", f"-chdir={repo}/terraform/environments/02-talos-cluster", "output", "-json"], capture_output=True, text=True)
+    res = subprocess.run(["terraform", f"-chdir={repo}/terraform/environments/01-talos-cluster", "output", "-json"], capture_output=True, text=True)
     data = json.loads(res.stdout)
     print(data.get("cluster_endpoints", {}).get("value", {}).get("controlplane_ip", ""))
 except Exception:

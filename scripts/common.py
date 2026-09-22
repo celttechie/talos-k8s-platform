@@ -58,8 +58,8 @@ def get_target_host(repo_root=None):
     Search precedence:
     1. TARGET_HOST environment variable
     2. TARGET_HOST declared in target.env
-    3. libvirt_uri parsed from terraform/environments/02-talos-cluster/terraform.tfvars
-    4. libvirt_uri parsed from terraform/environments/01-nested-sandbox/terraform.tfvars
+    3. libvirt_uri parsed from terraform/environments/01-talos-cluster/terraform.tfvars
+    4. libvirt_uri parsed from terraform/environments/00-sandbox-hypervisor/terraform.tfvars
 
     Returns:
         str or None: Discovered hostname / IP address, or None if local.
@@ -76,7 +76,7 @@ def get_target_host(repo_root=None):
         return target_env["TARGET_HOST"]
 
     # Check terraform.tfvars across stages
-    for stage in ["02-talos-cluster", "01-nested-sandbox"]:
+    for stage in ["01-talos-cluster", "00-sandbox-hypervisor"]:
         tfvars_path = os.path.join(repo_root, "terraform", "environments", stage, "terraform.tfvars")
         if os.path.exists(tfvars_path):
             try:
@@ -95,7 +95,7 @@ def get_terraform_outputs(environment_name, repo_root=None):
     """Retrieve and parse JSON outputs from a Terraform environment directory.
 
     Args:
-        environment_name (str): Environment folder name (e.g. '01-nested-sandbox' or '02-talos-cluster').
+        environment_name (str): Environment folder name (e.g. '00-sandbox-hypervisor' or '01-talos-cluster').
         repo_root (str, optional): Root repository path.
 
     Returns:
@@ -125,9 +125,9 @@ def get_cluster_cidr(repo_root=None):
 
     Discovery precedence:
     1. TARGET_CLUSTER_CIDR declared in target.env or environment variable
-    2. Control plane or worker IPs from Terraform 02-talos-cluster outputs
+    2. Control plane or worker IPs from Terraform 01-talos-cluster outputs
     3. Server endpoint IP parsed from kubeconfig
-    4. Sandbox hypervisor IP from Terraform 01-nested-sandbox outputs
+    4. Sandbox hypervisor IP from Terraform 00-sandbox-hypervisor outputs
     5. Query remote libvirt network XML from target hypervisor via SSH
 
     Returns:
@@ -144,8 +144,8 @@ def get_cluster_cidr(repo_root=None):
     if target_env.get("TARGET_CLUSTER_CIDR"):
         return target_env["TARGET_CLUSTER_CIDR"]
 
-    # 2. Check 02-talos-cluster Terraform outputs
-    tf2_out = get_terraform_outputs("02-talos-cluster", repo_root=repo_root)
+    # 2. Check 01-talos-cluster Terraform outputs
+    tf2_out = get_terraform_outputs("01-talos-cluster", repo_root=repo_root)
     if tf2_out:
         cp_ip = None
         if "cluster_endpoints" in tf2_out and isinstance(tf2_out["cluster_endpoints"].get("value"), dict):
@@ -169,8 +169,8 @@ def get_cluster_cidr(repo_root=None):
         except Exception:
             pass
 
-    # 4. Check 01-nested-sandbox Terraform outputs
-    tf1_out = get_terraform_outputs("01-nested-sandbox", repo_root=repo_root)
+    # 4. Check 00-sandbox-hypervisor Terraform outputs
+    tf1_out = get_terraform_outputs("00-sandbox-hypervisor", repo_root=repo_root)
     if tf1_out and "sandbox_ip_address" in tf1_out:
         sb_ip = tf1_out["sandbox_ip_address"].get("value")
         if sb_ip:

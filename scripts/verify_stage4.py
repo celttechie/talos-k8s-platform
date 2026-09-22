@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Verification Test Suite - Stage 4: Networking (Cilium eBPF) & Dynamic Storage (Longhorn CSI)
-Validates Cilium eBPF datapath, Hubble UI, L2 announcement policies, and Longhorn dynamic PVC replication.
+Verification Test Suite - Stage 4: GitOps Delivery (ArgoCD, Secrets, CloudNativePG & Training Workload)
+Validates ArgoCD root App-of-Apps, External Secrets, CloudNativePG HA cluster, and Training App manifests.
 """
 
 import os
@@ -19,20 +19,23 @@ from common import (
 )
 
 REPO_ROOT = get_repo_root()
-CILIUM_VALUES = os.path.join(REPO_ROOT, "gitops", "platform", "cilium", "values.yaml")
-CILIUM_L2 = os.path.join(REPO_ROOT, "gitops", "platform", "cilium", "l2-policy.yaml")
-LONGHORN_VALUES = os.path.join(REPO_ROOT, "gitops", "platform", "longhorn", "values.yaml")
+ROOT_APP = os.path.join(REPO_ROOT, "gitops", "bootstrap", "root-application.yaml")
+ARGOCD_VALUES = os.path.join(REPO_ROOT, "gitops", "platform", "argocd", "values.yaml")
+ESO_VALUES = os.path.join(REPO_ROOT, "gitops", "platform", "external-secrets", "values.yaml")
+CNPG_CLUSTER = os.path.join(REPO_ROOT, "gitops", "apps", "production", "cloudnative-pg", "cluster.yaml")
+TRAINING_APP_DIR = os.path.join(REPO_ROOT, "gitops", "apps", "training-app")
 KUBECONFIG = os.path.join(REPO_ROOT, "kubeconfig")
 
 
 def main():
-    reporter = TestReporter("Stage 4: Networking (Cilium eBPF) & Storage (Longhorn CSI) Verification")
+    reporter = TestReporter("Stage 4: GitOps & Workloads Verification Suite")
 
-    # 1. Static Contract & Manifest Validation
+    # 1. Validate Manifests Exist and Parse Cleanly
     for name, path in [
-        ("Cilium Helm Values", CILIUM_VALUES),
-        ("Cilium L2 Policy & IP Pool", CILIUM_L2),
-        ("Longhorn CSI Helm Values", LONGHORN_VALUES)
+        ("ArgoCD Root App-of-Apps", ROOT_APP),
+        ("ArgoCD Controller Helm Values", ARGOCD_VALUES),
+        ("External Secrets Operator Values", ESO_VALUES),
+        ("CloudNativePG HA Postgres Cluster", CNPG_CLUSTER)
     ]:
         exists = os.path.exists(path)
         reporter.record(f"{name} Manifest", exists, f"Found {path}" if exists else "Missing manifest")
@@ -40,53 +43,44 @@ def main():
             valid, msg = validate_yaml_file(path)
             reporter.record(f"{name} YAML Schema", valid, msg)
 
-    # 2. Inspect Cilium Configuration Parameters
-    if os.path.exists(CILIUM_VALUES):
-        with open(CILIUM_VALUES, "r") as f:
-            cilium_cfg = yaml.safe_load(f)
-            kpr = cilium_cfg.get("kubeProxyReplacement", False)
-            hubble_ui = cilium_cfg.get("hubble", {}).get("ui", {}).get("enabled", False)
-            l2_ann = cilium_cfg.get("l2announcements", {}).get("enabled", False)
+    # 2. Verify Training App Kustomize Build
+    if os.path.exists(TRAINING_APP_DIR):
+        res = subprocess.run(["kubectl", "kustomize", TRAINING_APP_DIR], capture_output=True, text=True)
+        if res.returncode == 0:
+            doc_count = res.stdout.count("kind:")
+            reporter.record("Training Workload Kustomize Build", True, f"Successfully built {doc_count} Kubernetes resources")
+        else:
+            reporter.record("Training Workload Kustomize Build", False, res.stderr.strip())
 
-            reporter.record("Cilium eBPF kube-proxy Replacement", kpr is True, "kubeProxyReplacement: true")
-            reporter.record("Cilium Hubble Observability & UI", hubble_ui is True, "hubble.ui.enabled: true")
-            reporter.record("Cilium Layer 2 IP Announcements", l2_ann is True, "l2announcements.enabled: true")
+    # 3. Verify CloudNativePG Anti-Affinity & Storage Spec
+    if os.path.exists(CNPG_CLUSTER):
+        with open(CNPG_CLUSTER, "r") as f:
+            cnpg_cfg = yaml.safe_load(f)
+            instances = cnpg_cfg.get("spec", {}).get("instances", 0)
+            sc = cnpg_cfg.get("spec", {}).get("storage", {}).get("storageClass")
+            anti_affinity = bool(cnpg_cfg.get("spec", {}).get("affinity", {}).get("podAntiAffinity"))
 
-    # 3. Inspect Longhorn Configuration Parameters
-    if os.path.exists(LONGHORN_VALUES):
-        with open(LONGHORN_VALUES, "r") as f:
-            lh_cfg = yaml.safe_load(f)
-            data_path = lh_cfg.get("defaultSettings", {}).get("defaultDataPath")
-            replicas = lh_cfg.get("defaultSettings", {}).get("defaultReplicaCount")
-            default_sc = lh_cfg.get("persistence", {}).get("defaultClass", False)
+            reporter.record("CloudNativePG HA Replica Count", instances == 2, f"{instances} database instances")
+            reporter.record("CloudNativePG Longhorn StorageClass", sc == "longhorn", f"storageClass: {sc}")
+            reporter.record("CloudNativePG Pod Anti-Affinity", anti_affinity is True, "Pod anti-affinity configured across worker nodes")
 
-            reporter.record("Longhorn Worker Data Path", data_path == "/var/lib/longhorn", f"defaultDataPath: {data_path} (/dev/vdb)")
-            reporter.record("Longhorn 2-Node Replica Redundancy", replicas == 2, f"defaultReplicaCount: {replicas}")
-            reporter.record("Longhorn Default StorageClass", default_sc is True, "persistence.defaultClass: true")
-
-    # 4. Dynamic Cluster Checks (if kubeconfig exists and API is reachable)
+    # 4. Dynamic Cluster Checks (if cluster is online)
     if os.path.exists(KUBECONFIG):
         res = subprocess.run(["kubectl", f"--kubeconfig={KUBECONFIG}", "cluster-info"], capture_output=True, text=True)
         if res.returncode == 0:
-            print(f"\n{GREEN}===> Querying Live Kubernetes Cluster for CNI and Storage...{RESET}")
-            cilium_res = subprocess.run(
-                ["kubectl", f"--kubeconfig={KUBECONFIG}", "-n", "kube-system", "get", "pods", "-l", "k8s-app=cilium", "-o", "jsonpath={.items[*].status.phase}"],
+            print(f"\n{GREEN}===> Querying Live Cluster for Workloads...{RESET}")
+            t_res = subprocess.run(
+                ["kubectl", f"--kubeconfig={KUBECONFIG}", "-n", "training", "get", "pods", "-o", "jsonpath={.items[*].metadata.name}"],
                 capture_output=True, text=True
             )
-            reporter.record("Live Cilium eBPF Pods", "Running" in cilium_res.stdout, cilium_res.stdout or "No Cilium pods found")
-
-            lh_res = subprocess.run(
-                ["kubectl", f"--kubeconfig={KUBECONFIG}", "-n", "longhorn-system", "get", "pods", "-l", "app=longhorn-manager", "-o", "jsonpath={.items[*].status.phase}"],
-                capture_output=True, text=True
-            )
-            reporter.record("Live Longhorn Manager Pods", "Running" in lh_res.stdout, lh_res.stdout or "No Longhorn pods found")
+            reporter.record("Live Training Microservices Pods", bool(t_res.stdout.strip()), t_res.stdout or "No pods deployed yet in training namespace")
         else:
             print(f"\n{YELLOW}⚠️  Live Kubernetes cluster offline or unreachable via {KUBECONFIG}.{RESET}")
-            reporter.record("Live Cluster Services Verification", True, "Static configuration and declarative manifests verified")
+            reporter.record("Live Cluster Workload Verification", True, "Static configuration and declarative manifests verified")
     else:
-        reporter.record("Live Cluster Services Verification", True, "Static configuration and declarative manifests verified")
+        reporter.record("Live Cluster Workload Verification", True, "Static configuration and declarative manifests verified")
 
-    return reporter.summary("Stage 4 Verification Succeeded: All Cilium eBPF and Longhorn CSI configurations verified!", "Stage 4 Verification Failed: One or more checks failed.")
+    return reporter.summary("Stage 4 Verification Succeeded: All GitOps, Secrets, and Workload manifests verified!", "Stage 4 Verification Failed: One or more checks failed.")
 
 
 if __name__ == "__main__":

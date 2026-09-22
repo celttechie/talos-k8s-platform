@@ -106,8 +106,8 @@ talos-k8s-platform/
 │   │   ├── libvirt_talos_node/         # Reusable libvirt VM module for Talos
 │   │   └── talos_cluster/              # Talos machine configs & bootstrap provider
 │   └── environments/
-│       ├── 01-nested-sandbox/          # (Optional) L1 Sandbox VM if running nested
-│       └── 02-talos-cluster/           # L1/L2 Talos Control Plane & Worker VMs
+│       ├── 00-sandbox-hypervisor/      # (Optional) L1 Sandbox VM if running nested
+│       └── 01-talos-cluster/           # L1/L2 Talos Control Plane & Worker VMs
 ├── talos/
 │   ├── talconfig.yaml                  # Declarative Talos cluster generator (talhelper)
 │   ├── patches/                        # Machine config patches (Cilium, Longhorn storage disks)
