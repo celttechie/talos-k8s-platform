@@ -78,41 +78,41 @@ All project milestones (M1–M6) are fully implemented and undergoing active ver
 
 ## 🚀 Quick Start: Standing Up the Cluster
 
-Follow the complete stand-up procedure detailed in the [Cluster Bootstrap & Learning Guide](docs/02-bootstrap-guide.md):
+### Option A: One-Command Lifecycle (Recommended)
+```bash
+# 1. Audit local workstation & configure target server
+make doctor
+make configure && make preflight
+
+# 2. Provision, bootstrap, and deploy entire platform (Stages 1 through 5)
+make up
+
+# 3. Check live status & run full verification suite
+make status
+make test-all
+
+# 4. Teardown when done
+make down
+```
+
+### Option B: Step-by-Step Staged Deployment
+Follow the granular stage-by-stage stand-up procedure detailed in the [Cluster Bootstrap & Learning Guide](docs/02-bootstrap-guide.md):
 
 ```bash
-# 1. Audit developer workstation prerequisites
-make doctor
-
-# 2. Configure target deployment server (Dell T5600)
-make configure
-make preflight
-
-# 3. Provision Infrastructure (Stage 0 Sandbox Hypervisor & Stage 1 Talos VMs)
-# Note: Stage 0 is optional if you already have a target hypervisor.
+# Provision Infrastructure (Stage 0 Optional Sandbox VM & Stage 1 Talos VMs)
 make stage0-apply && make verify-stage0
 make stage1-apply && make verify-stage1
 
-# 4. Generate Machine Configs & Bootstrap Talos Control Plane (Stage 2)
-make talos-gen-config
-make talos-apply-config
-make talos-bootstrap
-make talos-kubeconfig
-make talos-health
+# Bootstrap Talos OS & Kubernetes Control Plane (Stage 2)
+make talos-gen-config && make talos-apply-config && make talos-bootstrap && make talos-kubeconfig
 make verify-stage2
 
-# 5. Deploy Networking (Cilium eBPF) & Dynamic Storage (Longhorn) (Stage 3)
-make cilium-install
-make longhorn-install
-make verify-stage3
+# Deploy Platform Services: Cilium eBPF CNI & Longhorn CSI Storage (Stage 3)
+make cilium-install && make longhorn-install && make verify-stage3
 
-# 6. Deploy GitOps & Training Microservices (Stage 4)
-make workload-install
-make verify-stage4
-
-# 7. Deploy Observability Stack (Stage 5)
-make monitoring-install
-make verify-stage5
+# Deploy Training Workloads & Observability Stack (Stages 4 & 5)
+make workload-install && make verify-stage4
+make monitoring-install && make verify-stage5
 ```
 
 ---

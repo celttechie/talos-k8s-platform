@@ -62,6 +62,64 @@ route: ## Dynamically discover and configure local workstation route to cluster 
 ensure-route:
 	@python3 $(SCRIPTS_DIR)/ensure_route.py
 
+##@ 🚀 Platform Lifecycle (One-Command Operations)
+
+.PHONY: up
+up: ## Provision, bootstrap, and deploy entire platform end-to-end (Stages 1 through 5)
+	@echo -e "$(GREEN)===> [1/5] Provisioning Stage 1 Talos VMs...$(RESET)"
+	@$(MAKE) stage1-apply
+	@echo -e "$(GREEN)===> [2/5] Bootstrapping Stage 2 Talos OS & Kubernetes Control Plane...$(RESET)"
+	@$(MAKE) talos-gen-config
+	@$(MAKE) talos-apply-config
+	@$(MAKE) talos-bootstrap
+	@$(MAKE) talos-kubeconfig
+	@echo -e "$(GREEN)===> [3/5] Deploying Stage 3 Networking (Cilium) & Storage (Longhorn)...$(RESET)"
+	@$(MAKE) cilium-install
+	@$(MAKE) longhorn-install
+	@echo -e "$(GREEN)===> [4/5] Deploying Stage 4 Training Microservices...$(RESET)"
+	@$(MAKE) workload-install
+	@echo -e "$(GREEN)===> [5/5] Deploying Stage 5 Observability & Monitoring Stack...$(RESET)"
+	@$(MAKE) monitoring-install
+	@echo -e "\n$(GREEN)$(BOLD)🎉 Platform Provisioning Complete!$(RESET)"
+	@echo -e "Access Dashboards with:"
+	@echo -e "  - Grafana:     $(BLUE)make grafana$(RESET)     (http://localhost:3000)"
+	@echo -e "  - Hubble UI:   $(BLUE)make hubble-ui$(RESET)   (http://localhost:12000)"
+	@echo -e "  - Longhorn UI: $(BLUE)make longhorn$(RESET)    (http://localhost:8000)"
+	@echo -e "  - ArgoCD:      $(BLUE)make argocd$(RESET)      (https://localhost:8080)\n"
+
+.PHONY: down
+down: ## Destroy cluster VMs and clean temporary state
+	@echo -e "$(YELLOW)===> Tearing down Talos downstream cluster (Stage 1)...$(RESET)"
+	@$(MAKE) stage1-destroy
+	@echo -e "$(YELLOW)===> Cleaning local secrets and generated configs...$(RESET)"
+	@rm -f kubeconfig talos/talosconfig talos/controlplane.yaml talos/worker.yaml
+	@echo -e "$(GREEN)Cluster teardown complete.$(RESET)"
+
+.PHONY: status
+status: ensure-route ## Quick health and readiness overview of nodes, storage, and services
+	@echo -e "$(BLUE)==============================================================================$(RESET)"
+	@echo -e "$(BLUE)     Talos Kubernetes Platform Live Status                                    $(RESET)"
+	@echo -e "$(BLUE)==============================================================================$(RESET)"
+	@echo -e "\n$(BOLD)Kubernetes Nodes:$(RESET)"
+	@kubectl get nodes -o wide 2>/dev/null || echo "Cluster offline or unreachable"
+	@echo -e "\n$(BOLD)Training Workload Pods:$(RESET)"
+	@kubectl get pods -n training 2>/dev/null || true
+	@echo -e "\n$(BOLD)Non-Running / Pending Pods (if any):$(RESET)"
+	@kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded 2>/dev/null || echo "All pods running."
+	@echo -e "\n$(BOLD)Storage Classes & Persistent Volumes:$(RESET)"
+	@kubectl get sc,pvc -A 2>/dev/null || true
+
+.PHONY: test-all
+test-all: ## Execute full platform test suite across all milestones (M1-M6)
+	@echo -e "$(GREEN)===> Running All Milestone Test Suites (M1 through M6)...$(RESET)"
+	@$(MAKE) test-m1
+	@$(MAKE) test-m2
+	@$(MAKE) test-m3
+	@$(MAKE) test-m4
+	@$(MAKE) test-m5
+	@$(MAKE) test-m6
+	@echo -e "\n$(GREEN)$(BOLD)🎉 All Milestone Test Suites Passed!$(RESET)\n"
+
 ##@ 🏗️ Stage 0: Nested Sandbox Hypervisor (00-sandbox-hypervisor)
 
 .PHONY: stage0-init
