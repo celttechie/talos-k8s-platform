@@ -217,12 +217,21 @@ def get_cluster_cidr(repo_root=None):
     tf2_out = get_terraform_outputs("01-talos-cluster", repo_root=repo_root)
     if tf2_out:
         cp_ip = None
+        cp_nodes = tf2_out.get("controlplane_nodes", {}).get("value", {}) if isinstance(tf2_out.get("controlplane_nodes"), dict) else {}
         if "cluster_endpoints" in tf2_out and isinstance(tf2_out["cluster_endpoints"].get("value"), dict):
             cp_ip = tf2_out["cluster_endpoints"]["value"].get("controlplane_ip")
-        elif "controlplane_nodes" in tf2_out and isinstance(tf2_out["controlplane_nodes"].get("value"), dict):
-            cp_ip = tf2_out["controlplane_nodes"]["value"].get("ip_address")
-        if cp_ip:
-            return str(ipaddress.IPv4Interface(f"{cp_ip}/24").network)
+        elif "controlplane_nodes" in tf2_out and isinstance(cp_nodes, dict):
+            cp_ip = cp_nodes.get("ip_address")
+
+        if not cp_ip or cp_ip == "pending-dhcp":
+            cp_mac = cp_nodes.get("mac_address", "52:54:00:10:00:10") if isinstance(cp_nodes, dict) else "52:54:00:10:00:10"
+            cp_ip = resolve_node_ip(cp_mac, repo_root=repo_root)
+
+        if cp_ip and cp_ip != "pending-dhcp":
+            try:
+                return str(ipaddress.IPv4Interface(f"{cp_ip}/24").network)
+            except Exception:
+                pass
 
     # 3. Check kubeconfig
     kubeconfig_path = os.path.join(repo_root, "kubeconfig")
@@ -242,8 +251,11 @@ def get_cluster_cidr(repo_root=None):
     tf1_out = get_terraform_outputs("00-sandbox-hypervisor", repo_root=repo_root)
     if tf1_out and "sandbox_ip_address" in tf1_out:
         sb_ip = tf1_out["sandbox_ip_address"].get("value")
-        if sb_ip:
-            return str(ipaddress.IPv4Interface(f"{sb_ip}/24").network)
+        if sb_ip and sb_ip != "pending-dhcp":
+            try:
+                return str(ipaddress.IPv4Interface(f"{sb_ip}/24").network)
+            except Exception:
+                pass
 
     # 5. Fallback: Query target hypervisor libvirt network definition via SSH
     target_host = get_target_host(repo_root=repo_root)
