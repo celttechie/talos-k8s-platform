@@ -91,6 +91,75 @@ def get_target_host(repo_root=None):
     return None
 
 
+def get_active_dhcp_leases(repo_root=None):
+    """Query active DHCP leases across discovered libvirt URIs.
+
+    Returns:
+        dict: Mapping of lowercase MAC address to leased IP address.
+    """
+    if repo_root is None:
+        repo_root = get_repo_root()
+
+    uris = []
+    # 1. From target.env
+    t_env = load_target_env(os.path.join(repo_root, "target.env"))
+    if t_env.get("TARGET_LIBVIRT_URI"):
+        uris.append(t_env["TARGET_LIBVIRT_URI"])
+
+    # 2. From tfvars
+    for stage in ["00-sandbox-hypervisor", "01-talos-cluster"]:
+        tfvars_path = os.path.join(repo_root, "terraform", "environments", stage, "terraform.tfvars")
+        if os.path.exists(tfvars_path):
+            try:
+                with open(tfvars_path, "r") as f:
+                    for line in f:
+                        if "libvirt_uri" in line and "=" in line:
+                            uri_val = line.split("=", 1)[1].strip().strip('"\'')
+                            if uri_val and uri_val not in uris:
+                                uris.append(uri_val)
+            except Exception:
+                pass
+
+    uris.extend(["qemu:///system", "qemu+ssh://bjarrett@192.168.9.110/system?keyfile=/home/bjarrett/.ssh/id_ed25519"])
+
+    mac_map = {}
+    for uri in uris:
+        try:
+            cmd = ["virsh", "-c", uri, "net-dhcp-leases", "default"]
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            if res.returncode == 0:
+                for line in res.stdout.splitlines():
+                    m = re.search(r"([0-9a-f:]{17})\s+ipv4\s+([0-9.]+)/\d+", line, re.I)
+                    if m:
+                        mac_map[m.group(1).lower()] = m.group(2)
+        except Exception:
+            pass
+
+    return mac_map
+
+
+def resolve_node_ip(mac_address, default_ip=None, repo_root=None):
+    """Resolve a node IP by MAC address from active DHCP leases or fallback to default.
+
+    Args:
+        mac_address (str): Node MAC address (e.g. '52:54:00:10:00:10').
+        default_ip (str, optional): Default fallback IP if resolution fails.
+        repo_root (str, optional): Root repository path.
+
+    Returns:
+        str: Resolved IP address.
+    """
+    if not mac_address:
+        return default_ip or "pending-dhcp"
+
+    mac_clean = mac_address.lower().strip()
+    leases = get_active_dhcp_leases(repo_root=repo_root)
+    if mac_clean in leases:
+        return leases[mac_clean]
+
+    return default_ip or "pending-dhcp"
+
+
 def get_terraform_outputs(environment_name, repo_root=None):
     """Retrieve and parse JSON outputs from a Terraform environment directory.
 

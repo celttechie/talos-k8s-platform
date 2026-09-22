@@ -13,6 +13,7 @@ from common import (
     TestReporter,
     check_tcp_port,
     get_terraform_outputs,
+    resolve_node_ip,
 )
 
 
@@ -33,14 +34,18 @@ def main():
     cp = outputs.get("controlplane_nodes", {}).get("value", {})
     workers = outputs.get("worker_nodes", {}).get("value", {})
 
+    cp_mac = cp.get("mac_address", "52:54:00:10:00:10")
+    cp_ip = resolve_node_ip(cp_mac, default_ip=cp.get("ip_address"))
+
     print(f"Discovered Nodes in Terraform State:")
-    print(f"  - Control Plane: {BOLD}{cp.get('name')}{RESET} (IP: {cp.get('ip_address')})")
+    print(f"  - Control Plane: {BOLD}{cp.get('name')}{RESET} (IP: {cp_ip})")
     for w_key, w_val in workers.items():
-        print(f"  - Worker: {BOLD}{w_val.get('name')}{RESET} (IP: {w_val.get('ip_address')})")
+        w_mac = w_val.get("mac_address")
+        w_ip = resolve_node_ip(w_mac, default_ip=w_val.get("ip_address"))
+        print(f"  - Worker: {BOLD}{w_val.get('name')}{RESET} (IP: {w_ip})")
     print()
 
     # 1. Check Control Plane
-    cp_ip = cp.get("ip_address")
     if cp_ip and cp_ip != "pending-dhcp":
         reporter.record("Control Plane IP Lease", True, f"{cp.get('name')} leased {cp_ip}")
         talos_api_ok = check_tcp_port(cp_ip, 50000)
@@ -51,7 +56,8 @@ def main():
     # 2. Check Workers and Storage Disk
     for w_key, w_val in workers.items():
         w_name = w_val.get("name")
-        w_ip = w_val.get("ip_address")
+        w_mac = w_val.get("mac_address")
+        w_ip = resolve_node_ip(w_mac, default_ip=w_val.get("ip_address"))
         has_disk = bool(w_val.get("data_volume_id"))
         reporter.record(f"{w_name} Secondary Storage Disk", has_disk, "Longhorn data disk attached (/dev/vdb)" if has_disk else "Missing secondary data disk")
 

@@ -15,23 +15,21 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # Configuration defaults
 CLUSTER_NAME="${CLUSTER_NAME:-talos-k8s-platform}"
 if [[ -z "${CONTROL_PLANE_IP:-}" ]]; then
-    if [[ -d "${REPO_ROOT}/terraform/environments/01-talos-cluster" ]]; then
-        DETECTED_CP_IP=$(python3 -c '
-import json, os, subprocess
+    DETECTED_CP_IP=$(python3 -c '
+import sys, os
+sys.path.insert(0, os.path.join(os.environ.get("REPO_ROOT", "."), "scripts"))
 try:
-    repo = os.environ.get("REPO_ROOT", ".")
-    res = subprocess.run(["terraform", f"-chdir={repo}/terraform/environments/01-talos-cluster", "output", "-json"], capture_output=True, text=True)
-    data = json.loads(res.stdout)
-    print(data.get("cluster_endpoints", {}).get("value", {}).get("controlplane_ip", ""))
+    from bootstrap_cluster import get_cluster_endpoints
+    ep = get_cluster_endpoints()
+    print(ep.get("controlplane_ip", ""))
 except Exception:
     print("")
 ' 2>/dev/null || true)
-        if [[ -n "${DETECTED_CP_IP}" ]]; then
-            CONTROL_PLANE_IP="${DETECTED_CP_IP}"
-        fi
+    if [[ -n "${DETECTED_CP_IP}" && "${DETECTED_CP_IP}" != "pending-dhcp" ]]; then
+        CONTROL_PLANE_IP="${DETECTED_CP_IP}"
     fi
 fi
-CONTROL_PLANE_IP="${CONTROL_PLANE_IP:-192.168.122.10}"
+CONTROL_PLANE_IP="${CONTROL_PLANE_IP:-192.168.122.224}"
 CONTROL_PLANE_PORT="${CONTROL_PLANE_PORT:-6443}"
 CONTROL_PLANE_ENDPOINT="${CONTROL_PLANE_ENDPOINT:-https://${CONTROL_PLANE_IP}:${CONTROL_PLANE_PORT}}"
 OUTPUT_DIR="${OUTPUT_DIR:-${REPO_ROOT}/talos}"
