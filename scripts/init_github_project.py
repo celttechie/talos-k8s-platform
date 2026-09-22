@@ -209,7 +209,7 @@ def main():
         m_num = milestone_map.get(issue["milestone"])
         labels_arg = ",".join(issue["labels"])
         m_arg = f"--milestone \"{issue['milestone']}\"" if m_num else ""
-        
+
         cmd = f"gh issue create --title \"{issue['title']}\" --body \"{issue['body']}\" --label \"{labels_arg}\" {m_arg}"
         res = run_cmd(cmd)
         if res.returncode == 0:
@@ -219,4 +219,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

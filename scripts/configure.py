@@ -22,7 +22,7 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 def parse_ssh_config(host_alias, ssh_config_path=None):
     """Extract host configuration from ~/.ssh/config for a specific host alias.
-    
+
     Raises:
         ValueError: If host_alias is empty or not specified.
         FileNotFoundError: If ssh_config_path does not exist.
@@ -404,4 +404,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

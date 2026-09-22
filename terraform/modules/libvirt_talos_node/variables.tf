@@ -55,4 +55,3 @@ variable "mac_address" {
   type        = string
   default     = ""
 }
-

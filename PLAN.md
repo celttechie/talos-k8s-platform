@@ -171,4 +171,3 @@ flowchart LR
 1. Deploy the multi-tier communicating training application (`frontend`, `order-api`, `cache`, `database`).
 2. Integrate `drill_manager.py` with the drill scenario catalog.
 3. Provide step-by-step diagnostic runbooks in `docs/troubleshooting-drills/`.
-

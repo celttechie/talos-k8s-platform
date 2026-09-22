@@ -12,10 +12,10 @@ The platform operates on a Dell Precision T5600 bare-metal server using KVM hard
 flowchart TD
     subgraph Host ["Physical Hypervisor: Dell Precision T5600"]
         BareMetal["Ubuntu Linux Server (Libvirtd + KVM)\nHost IP: target.env (TARGET_HOST)"]
-        
+
         subgraph Stage1 ["Stage 1: Nested Sandbox Hypervisor (L1 VM)"]
             SandboxVM["sandbox-hypervisor-node (Ubuntu 24.04 LTS)\nNested KVM Passthrough (/dev/kvm)\n8 vCPU | 12GB RAM | 60GB Disk\nNAT Bridge: virbr0 (192.168.122.0/24)"]
-            
+
             subgraph Stage2 ["Stage 2: Talos Kubernetes Cluster (L2 VMs)"]
                 CP["talos-cp-01 (Control Plane)\n2 vCPU | 2GB RAM | 20GB OS (/dev/vda)\nIP: 192.168.122.10"]
                 W1["talos-worker-01 (Worker 1)\n2 vCPU | 3GB RAM\n20GB OS (/dev/vda) + 30GB Storage (/dev/vdb)\nIP: 192.168.122.11"]

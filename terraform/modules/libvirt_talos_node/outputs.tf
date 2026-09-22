@@ -32,4 +32,3 @@ output "data_volume_id" {
   description = "ID of the secondary Longhorn data disk volume if created."
   value       = var.data_disk_size_bytes > 0 ? libvirt_volume.data_disk[0].id : null
 }
-

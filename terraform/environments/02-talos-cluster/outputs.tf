@@ -36,4 +36,3 @@ output "cluster_endpoints" {
     worker_02_ip    = module.worker_02.ip_address
   }
 }
-

@@ -69,4 +69,3 @@ variable "mac_address" {
   type        = string
   default     = "52:54:00:BA:67:8E"
 }
-

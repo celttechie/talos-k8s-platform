@@ -85,4 +85,3 @@ resource "libvirt_domain" "sandbox_hypervisor" {
     autoport    = true
   }
 }
-
