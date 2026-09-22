@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Verification Test Suite - Stage 6: Observability Platform (Prometheus, Grafana & Hubble)
+Verification Test Suite - Stage 5: Observability Platform (Prometheus, Grafana & Hubble)
 Validates kube-prometheus-stack configuration, alerting rules, and curated Grafana dashboard definitions.
 """
 
@@ -28,7 +28,7 @@ KUBECONFIG = os.path.join(REPO_ROOT, "kubeconfig")
 
 
 def main():
-    reporter = TestReporter("Stage 6: Observability (Prometheus & Grafana) Verification Suite")
+    reporter = TestReporter("Stage 5: Observability (Prometheus & Grafana) Verification Suite")
 
     # 1. Validate Base Stack & Alert Rules
     for name, path in [
@@ -85,8 +85,8 @@ def main():
         reporter.record("Live Observability Stack Verification", True, "Static configuration and declarative manifests verified")
 
     return reporter.summary(
-        "🎉 Stage 6 Verification Succeeded: All Prometheus, Grafana, and Alerting configurations verified!",
-        "❌ Stage 6 Verification Failed: One or more checks failed."
+        "🎉 Stage 5 Verification Succeeded: All Prometheus, Grafana, and Alerting configurations verified!",
+        "❌ Stage 5 Verification Failed: One or more checks failed."
     )
 
 

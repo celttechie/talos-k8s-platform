@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Verification Test Suite - Stage 3: Talos OS & Kubernetes Bootstrapping
+Verification Test Suite - Stage 2: Talos OS & Kubernetes Bootstrapping
 Validates machine config integrity, etcd quorum status, kubeconfig extraction, and node registration.
 """
 
@@ -27,7 +27,7 @@ KUBECONFIG = os.path.join(REPO_ROOT, "kubeconfig")
 
 
 def get_cluster_endpoints():
-    data = get_terraform_outputs("02-talos-cluster", repo_root=REPO_ROOT)
+    data = get_terraform_outputs("01-talos-cluster", repo_root=REPO_ROOT)
     if data:
         endpoints = data.get("cluster_endpoints", {}).get("value", {})
         return {
@@ -43,7 +43,7 @@ def get_cluster_endpoints():
 
 
 def main():
-    reporter = TestReporter("Stage 3: Talos OS & Kubernetes Bootstrapping Verification Suite")
+    reporter = TestReporter("Stage 2: Talos OS & Kubernetes Bootstrapping Verification Suite")
 
     # 1. Static Contract & Config Artifact Checks
     reporter.record("talosconfig Client Config", os.path.exists(TALOSCONFIG), f"Found {TALOSCONFIG}" if os.path.exists(TALOSCONFIG) else "Missing talosconfig")
@@ -89,7 +89,7 @@ def main():
             else:
                 reporter.record("Kubernetes Node Registration", False, k8s_res.stderr.strip())
 
-    return reporter.summary("Stage 3 Verification Succeeded: All bootstrapping artifacts and configurations verified!", "Stage 3 Verification Failed: One or more checks failed.")
+    return reporter.summary("Stage 2 Verification Succeeded: All bootstrapping artifacts and configurations verified!", "Stage 2 Verification Failed: One or more checks failed.")
 
 
 if __name__ == "__main__":

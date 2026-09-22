@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Verification Test Suite - Stage 5: GitOps Delivery (ArgoCD, Secrets, CloudNativePG & Training Workload)
+Verification Test Suite - Stage 4: GitOps Delivery (ArgoCD, Secrets, CloudNativePG & Training Workload)
 Validates ArgoCD root App-of-Apps, External Secrets, CloudNativePG HA cluster, and Training App manifests.
 """
 
@@ -28,7 +28,7 @@ KUBECONFIG = os.path.join(REPO_ROOT, "kubeconfig")
 
 
 def main():
-    reporter = TestReporter("Stage 5: GitOps & Workloads Verification Suite")
+    reporter = TestReporter("Stage 4: GitOps & Workloads Verification Suite")
 
     # 1. Validate Manifests Exist and Parse Cleanly
     for name, path in [
@@ -80,7 +80,7 @@ def main():
     else:
         reporter.record("Live Cluster Workload Verification", True, "Static configuration and declarative manifests verified")
 
-    return reporter.summary("Stage 5 Verification Succeeded: All GitOps, Secrets, and Workload manifests verified!", "Stage 5 Verification Failed: One or more checks failed.")
+    return reporter.summary("Stage 4 Verification Succeeded: All GitOps, Secrets, and Workload manifests verified!", "Stage 4 Verification Failed: One or more checks failed.")
 
 
 if __name__ == "__main__":

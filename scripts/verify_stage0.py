@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Verification Test Suite - Stage 1: Nested Sandbox Hypervisor
+Verification Test Suite - Stage 0: Nested Sandbox Hypervisor
 Validates nested KVM hardware virtualization, libvirt service, and network bridge.
 """
 
@@ -18,17 +18,17 @@ from common import (
 
 
 def main():
-    reporter = TestReporter("Stage 1: Nested Sandbox Hypervisor Automated Verification Suite")
+    reporter = TestReporter("Stage 0: Nested Sandbox Hypervisor Automated Verification Suite")
 
-    outputs = get_terraform_outputs("01-nested-sandbox")
+    outputs = get_terraform_outputs("00-sandbox-hypervisor")
     if not outputs:
-        print(f"{YELLOW}⚠️  Stage 1 Terraform state not found or uninitialized.{RESET}")
+        print(f"{YELLOW}⚠️  Stage 0 Terraform state not found or uninitialized.{RESET}")
         print(f"{YELLOW}   Running offline mock verification for infrastructure code contracts.{RESET}\n")
 
-        reporter.record("Terraform Syntax & Validation", True, "Stage 1 syntax conforms to specification")
+        reporter.record("Terraform Syntax & Validation", True, "Stage 0 syntax conforms to specification")
         reporter.record("Cloud-Init Package Contracts", True, "qemu-kvm, libvirt-daemon-system, cpu-checker present")
         reporter.record("Nested CPU Passthrough Flag", True, "host-passthrough declared in domain")
-        return reporter.summary("Stage 1 code verification complete.", "Stage 1 code verification failed.")
+        return reporter.summary("Stage 0 code verification complete.", "Stage 0 code verification failed.")
 
     sandbox_ip = outputs.get("sandbox_ip_address", {}).get("value", "")
     print(f"Target Sandbox IP: {BOLD}{sandbox_ip}{RESET}\n")
@@ -74,7 +74,7 @@ def main():
     net_active = "default" in res.stdout and "active" in res.stdout
     reporter.record("Libvirt Virtual Network Bridge", net_active, "Default network bridge active" if net_active else "Virtual bridge inactive")
 
-    return reporter.summary("Stage 1 Verification Succeeded: Hypervisor ready for Talos downstream cluster!", "Stage 1 Verification Failed: Some hypervisor checks did not pass.")
+    return reporter.summary("Stage 0 Verification Succeeded: Hypervisor ready for Talos downstream cluster!", "Stage 0 Verification Failed: Some hypervisor checks did not pass.")
 
 
 if __name__ == "__main__":

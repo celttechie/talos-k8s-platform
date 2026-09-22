@@ -30,7 +30,7 @@ KUBECONFIG = os.path.join(REPO_ROOT, "kubeconfig")
 
 
 def get_cluster_endpoints():
-    data = get_terraform_outputs("02-talos-cluster", repo_root=REPO_ROOT)
+    data = get_terraform_outputs("01-talos-cluster", repo_root=REPO_ROOT)
     if data:
         endpoints = data.get("cluster_endpoints", {}).get("value", {})
         return {
@@ -80,8 +80,9 @@ def extract_kubeconfig(cp_ip):
         print(f"{YELLOW}Kubeconfig extraction note: {res.stderr.strip()}{RESET}")
 
 
-def check_health(cp_ip, wait_timeout=300):
+def check_health(cp_ip, wait_timeout=60):
     print(f"\n{GREEN}===> Step 4: Monitoring Cluster Health Gates ({wait_timeout}s timeout)...{RESET}")
+    print(f"{YELLOW}Note: Kubernetes nodes report NotReady until Stage 3 Cilium CNI is installed.{RESET}")
     cmd = f"talosctl --talosconfig {TALOSCONFIG} --nodes {cp_ip} --endpoints {cp_ip} health --wait-timeout {wait_timeout}s"
     print(f"Executing: {cmd}")
     res = run_cmd(cmd, check=False, capture=False)

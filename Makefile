@@ -9,8 +9,8 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 # Paths
-STAGE1_DIR  := terraform/environments/01-nested-sandbox
-STAGE2_DIR  := terraform/environments/02-talos-cluster
+STAGE0_DIR  := terraform/environments/00-sandbox-hypervisor
+STAGE1_DIR  := terraform/environments/01-talos-cluster
 TALOS_DIR   := talos
 GITOPS_DIR  := gitops
 SCRIPTS_DIR := scripts
@@ -62,68 +62,68 @@ route: ## Dynamically discover and configure local workstation route to cluster 
 ensure-route:
 	@python3 $(SCRIPTS_DIR)/ensure_route.py
 
-##@ 🏗️ Stage 1: Nested Sandbox Hypervisor (01-nested-sandbox)
+##@ 🏗️ Stage 0: Nested Sandbox Hypervisor (00-sandbox-hypervisor)
+
+.PHONY: stage0-init
+stage0-init: ## Initialize Terraform providers for Stage 0
+	@echo -e "$(GREEN)===> Initializing Stage 0 Nested Sandbox workspace...$(RESET)"
+	terraform -chdir=$(STAGE0_DIR) init
+
+.PHONY: stage0-plan
+stage0-plan: ## Generate and review execution plan for Stage 0
+	@echo -e "$(GREEN)===> Planning Stage 0 Nested Sandbox infrastructure...$(RESET)"
+	terraform -chdir=$(STAGE0_DIR) plan
+
+.PHONY: stage0-apply
+stage0-apply: ## Provision Stage 0 Nested Sandbox VM hypervisor
+	@echo -e "$(GREEN)===> Applying Stage 0 Nested Sandbox infrastructure...$(RESET)"
+	terraform -chdir=$(STAGE0_DIR) apply
+
+.PHONY: verify-stage0
+verify-stage0: ## Run automated verification checks on Stage 0 sandbox hypervisor
+	@echo -e "$(GREEN)===> Running Stage 0 verification test suite...$(RESET)"
+	@python3 $(SCRIPTS_DIR)/verify_stage0.py
+
+.PHONY: stage0-destroy
+stage0-destroy: ## Destroy Stage 0 Nested Sandbox infrastructure
+	@echo -e "$(YELLOW)===> Destroying Stage 0 Nested Sandbox infrastructure...$(RESET)"
+	terraform -chdir=$(STAGE0_DIR) destroy
+
+##@ 🚀 Stage 1: Talos Downstream Cluster VMs (01-talos-cluster)
 
 .PHONY: stage1-init
 stage1-init: ## Initialize Terraform providers for Stage 1
-	@echo -e "$(GREEN)===> Initializing Stage 1 Nested Sandbox workspace...$(RESET)"
+	@echo -e "$(GREEN)===> Initializing Stage 1 Talos Cluster workspace...$(RESET)"
 	terraform -chdir=$(STAGE1_DIR) init
 
 .PHONY: stage1-plan
 stage1-plan: ## Generate and review execution plan for Stage 1
-	@echo -e "$(GREEN)===> Planning Stage 1 Nested Sandbox infrastructure...$(RESET)"
+	@echo -e "$(GREEN)===> Planning Stage 1 Talos Cluster infrastructure...$(RESET)"
 	terraform -chdir=$(STAGE1_DIR) plan
 
 .PHONY: stage1-apply
-stage1-apply: ## Provision Stage 1 Nested Sandbox VM hypervisor
-	@echo -e "$(GREEN)===> Applying Stage 1 Nested Sandbox infrastructure...$(RESET)"
+stage1-apply: ## Provision Stage 1 Talos Control Plane & Worker VMs
+	@echo -e "$(GREEN)===> Applying Stage 1 Talos Cluster infrastructure...$(RESET)"
 	terraform -chdir=$(STAGE1_DIR) apply
 
 .PHONY: verify-stage1
-verify-stage1: ## Run automated verification checks on Stage 1 sandbox hypervisor
+verify-stage1: ## Run automated verification checks on Stage 1 Talos VMs
 	@echo -e "$(GREEN)===> Running Stage 1 verification test suite...$(RESET)"
 	@python3 $(SCRIPTS_DIR)/verify_stage1.py
 
 .PHONY: stage1-destroy
-stage1-destroy: ## Destroy Stage 1 Nested Sandbox infrastructure
-	@echo -e "$(YELLOW)===> Destroying Stage 1 Nested Sandbox infrastructure...$(RESET)"
+stage1-destroy: ## Destroy Stage 1 Talos Cluster infrastructure
+	@echo -e "$(YELLOW)===> Destroying Stage 1 Talos Cluster infrastructure...$(RESET)"
 	terraform -chdir=$(STAGE1_DIR) destroy
-
-##@ 🚀 Stage 2: Talos Downstream Cluster (02-talos-cluster)
-
-.PHONY: stage2-init
-stage2-init: ## Initialize Terraform providers for Stage 2
-	@echo -e "$(GREEN)===> Initializing Stage 2 Talos Cluster workspace...$(RESET)"
-	terraform -chdir=$(STAGE2_DIR) init
-
-.PHONY: stage2-plan
-stage2-plan: ## Generate and review execution plan for Stage 2
-	@echo -e "$(GREEN)===> Planning Stage 2 Talos Cluster infrastructure...$(RESET)"
-	terraform -chdir=$(STAGE2_DIR) plan
-
-.PHONY: stage2-apply
-stage2-apply: ## Provision Stage 2 Talos Control Plane & Worker VMs
-	@echo -e "$(GREEN)===> Applying Stage 2 Talos Cluster infrastructure...$(RESET)"
-	terraform -chdir=$(STAGE2_DIR) apply
-
-.PHONY: verify-stage2
-verify-stage2: ## Run automated verification checks on Stage 2 Talos VMs
-	@echo -e "$(GREEN)===> Running Stage 2 verification test suite...$(RESET)"
-	@python3 $(SCRIPTS_DIR)/verify_stage2.py
-
-.PHONY: stage2-destroy
-stage2-destroy: ## Destroy Stage 2 Talos Cluster infrastructure
-	@echo -e "$(YELLOW)===> Destroying Stage 2 Talos Cluster infrastructure...$(RESET)"
-	terraform -chdir=$(STAGE2_DIR) destroy
 
 .PHONY: test-m1
 test-m1: ## Execute full Milestone 1 validation and verification test suite
 	@echo -e "$(GREEN)===> Running Milestone 1 Test Suite...$(RESET)"
 	@$(MAKE) fmt
+	@$(MAKE) verify-stage0
 	@$(MAKE) verify-stage1
-	@$(MAKE) verify-stage2
 
-##@ ⚙️ Stage 3: Talos OS & Kubernetes Bootstrapping
+##@ ⚙️ Stage 2: Talos OS & Kubernetes Bootstrapping
 
 .PHONY: talos-gen-config
 talos-gen-config: ## Generate declarative Talos machine configurations with patches
@@ -150,19 +150,18 @@ talos-health: ensure-route ## Verify health of etcd, control plane components, a
 	@echo -e "$(GREEN)===> Auditing Talos cluster health...$(RESET)"
 	@python3 $(SCRIPTS_DIR)/bootstrap_cluster.py --health-only
 
-.PHONY: verify-stage3
-verify-stage3: ensure-route ## Run automated verification checks on Stage 3 Talos bootstrapping
-	@echo -e "$(GREEN)===> Running Stage 3 verification test suite...$(RESET)"
-	@python3 $(SCRIPTS_DIR)/verify_stage3.py
+.PHONY: verify-stage2
+verify-stage2: ensure-route ## Run automated verification checks on Stage 2 Talos bootstrapping
+	@echo -e "$(GREEN)===> Running Stage 2 verification test suite...$(RESET)"
+	@python3 $(SCRIPTS_DIR)/verify_stage2.py
 
 .PHONY: test-m2
 test-m2: ## Execute full Milestone 2 validation and verification test suite
 	@echo -e "$(GREEN)===> Running Milestone 2 Test Suite...$(RESET)"
 	@$(MAKE) talos-gen-config
-	@$(MAKE) verify-stage3
+	@$(MAKE) verify-stage2
 
-
-##@ 🌐 Stage 4: Platform Services (Cilium CNI & Longhorn CSI)
+##@ 🌐 Stage 3: Platform Services (Cilium CNI & Longhorn CSI)
 
 .PHONY: cilium-install
 cilium-install: ensure-route ## Deploy Cilium CNI with eBPF kube-proxy replacement and L2 policies
@@ -191,18 +190,62 @@ longhorn-install: ensure-route ## Deploy Longhorn distributed block storage
 		--namespace longhorn-system \
 		-f $(GITOPS_DIR)/platform/longhorn/values.yaml
 
-.PHONY: verify-stage4
-verify-stage4: ensure-route ## Run automated verification checks on Stage 4 Cilium and Longhorn
-	@echo -e "$(GREEN)===> Running Stage 4 verification test suite...$(RESET)"
-	@python3 $(SCRIPTS_DIR)/verify_stage4.py
+.PHONY: verify-stage3
+verify-stage3: ensure-route ## Run automated verification checks on Stage 3 Cilium and Longhorn
+	@echo -e "$(GREEN)===> Running Stage 3 verification test suite...$(RESET)"
+	@python3 $(SCRIPTS_DIR)/verify_stage3.py
 
 .PHONY: test-m3
 test-m3: ## Execute full Milestone 3 validation and verification test suite
 	@echo -e "$(GREEN)===> Running Milestone 3 Test Suite...$(RESET)"
+	@$(MAKE) verify-stage3
+
+##@ 🔄 Stage 4: GitOps Delivery (ArgoCD & Workloads)
+
+.PHONY: argocd-install
+argocd-install: ## Deploy ArgoCD GitOps controller via Helm
+	@echo -e "$(GREEN)===> Deploying ArgoCD via Helm...$(RESET)"
+	helm repo add argo https://argoproj.github.io/argo-helm 2>/dev/null || true
+	helm repo update argo
+	helm upgrade --install argocd argo/argo-cd --version 7.6.8 \
+		--namespace argocd --create-namespace \
+		-f $(GITOPS_DIR)/platform/argocd/values.yaml
+
+.PHONY: external-secrets-install
+external-secrets-install: ## Deploy External Secrets Operator via Helm
+	@echo -e "$(GREEN)===> Deploying External Secrets Operator...$(RESET)"
+	helm repo add external-secrets https://charts.external-secrets.io 2>/dev/null || true
+	helm repo update external-secrets
+	helm upgrade --install external-secrets external-secrets/external-secrets --version 0.10.4 \
+		--namespace external-secrets --create-namespace \
+		-f $(GITOPS_DIR)/platform/external-secrets/values.yaml
+
+.PHONY: gitops-bootstrap
+gitops-bootstrap: ## Apply ArgoCD Root Application (App-of-Apps)
+	@echo -e "$(GREEN)===> Bootstrapping ArgoCD Root App-of-Apps...$(RESET)"
+	kubectl apply -f $(GITOPS_DIR)/bootstrap/root-application.yaml
+
+.PHONY: workload-install
+workload-install: ensure-route ## Deploy multi-tier communicating training application
+	@echo -e "$(GREEN)===> Deploying training workload microservices...$(RESET)"
+	kubectl apply -k $(GITOPS_DIR)/apps/training-app
+
+.PHONY: workload-destroy
+workload-destroy: ensure-route ## Delete training workload microservices
+	@echo -e "$(YELLOW)===> Deleting training workload microservices...$(RESET)"
+	kubectl delete -k $(GITOPS_DIR)/apps/training-app --ignore-not-found
+
+.PHONY: verify-stage4
+verify-stage4: ## Run automated verification checks on Stage 4 GitOps and Workloads
+	@echo -e "$(GREEN)===> Running Stage 4 verification test suite...$(RESET)"
+	@python3 $(SCRIPTS_DIR)/verify_stage4.py
+
+.PHONY: test-m4
+test-m4: ## Execute full Milestone 4 validation and verification test suite
+	@echo -e "$(GREEN)===> Running Milestone 4 Test Suite...$(RESET)"
 	@$(MAKE) verify-stage4
 
-
-##@ 📊 Observability & Monitoring (Prometheus, Grafana & Hubble)
+##@ 📊 Stage 5: Observability & Monitoring (Prometheus, Grafana & Hubble)
 
 .PHONY: monitoring-install
 monitoring-install: ensure-route ## Deploy kube-prometheus-stack, Alert Rules & Grafana Dashboards
@@ -210,7 +253,7 @@ monitoring-install: ensure-route ## Deploy kube-prometheus-stack, Alert Rules & 
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
 	helm repo update prometheus-community
 	helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
-		--namespace monitoring --create-namespace --skip-crds \
+		--namespace monitoring --create-namespace \
 		-f $(GITOPS_DIR)/platform/monitoring/kube-prometheus-stack.yaml
 	@echo -e "$(GREEN)===> Applying lab alert rules & Grafana Dashboards...$(RESET)"
 	kubectl apply -f $(GITOPS_DIR)/platform/monitoring/alert-rules.yaml --namespace monitoring
@@ -236,28 +279,17 @@ longhorn: ensure-route ## Port-forward Longhorn storage UI to http://localhost:8
 	@echo -e "$(GREEN)===> Port-forwarding Longhorn UI to http://localhost:8000...$(RESET)"
 	kubectl port-forward -n longhorn-system svc/longhorn-frontend 8000:80
 
-.PHONY: verify-stage6
-verify-stage6: ensure-route ## Run automated verification checks on Stage 6 Observability Stack
-	@echo -e "$(GREEN)===> Running Stage 6 verification test suite...$(RESET)"
-	@python3 $(SCRIPTS_DIR)/verify_stage6.py
+.PHONY: verify-stage5
+verify-stage5: ensure-route ## Run automated verification checks on Stage 5 Observability Stack
+	@echo -e "$(GREEN)===> Running Stage 5 verification test suite...$(RESET)"
+	@python3 $(SCRIPTS_DIR)/verify_stage5.py
 
 .PHONY: test-m6
 test-m6: ## Execute full Milestone 6 validation and verification test suite
 	@echo -e "$(GREEN)===> Running Milestone 6 Test Suite...$(RESET)"
-	@$(MAKE) verify-stage6
-
+	@$(MAKE) verify-stage5
 
 ##@ 🧪 Training Workload & Troubleshooting Drills
-
-.PHONY: workload-install
-workload-install: ensure-route ## Deploy multi-tier communicating training application
-	@echo -e "$(GREEN)===> Deploying training workload microservices...$(RESET)"
-	kubectl apply -k $(GITOPS_DIR)/apps/training-app
-
-.PHONY: workload-destroy
-workload-destroy: ensure-route ## Delete training workload microservices
-	@echo -e "$(YELLOW)===> Deleting training workload microservices...$(RESET)"
-	kubectl delete -k $(GITOPS_DIR)/apps/training-app --ignore-not-found
 
 SCENARIO ?=
 
@@ -286,43 +318,6 @@ verify-drills: ## Run automated verification checks on troubleshooting drills an
 test-m5: ## Execute full Milestone 5 validation and verification test suite
 	@echo -e "$(GREEN)===> Running Milestone 5 Test Suite...$(RESET)"
 	@$(MAKE) verify-drills
-
-
-##@ 🔄 Stage 5: GitOps Delivery (ArgoCD & Workloads)
-
-.PHONY: argocd-install
-argocd-install: ## Deploy ArgoCD GitOps controller via Helm
-	@echo -e "$(GREEN)===> Deploying ArgoCD via Helm...$(RESET)"
-	helm repo add argo https://argoproj.github.io/argo-helm 2>/dev/null || true
-	helm repo update argo
-	helm upgrade --install argocd argo/argo-cd --version 7.6.8 \
-		--namespace argocd --create-namespace \
-		-f $(GITOPS_DIR)/platform/argocd/values.yaml
-
-.PHONY: external-secrets-install
-external-secrets-install: ## Deploy External Secrets Operator via Helm
-	@echo -e "$(GREEN)===> Deploying External Secrets Operator...$(RESET)"
-	helm repo add external-secrets https://charts.external-secrets.io 2>/dev/null || true
-	helm repo update external-secrets
-	helm upgrade --install external-secrets external-secrets/external-secrets --version 0.10.4 \
-		--namespace external-secrets --create-namespace \
-		-f $(GITOPS_DIR)/platform/external-secrets/values.yaml
-
-.PHONY: gitops-bootstrap
-gitops-bootstrap: ## Apply ArgoCD Root Application (App-of-Apps)
-	@echo -e "$(GREEN)===> Bootstrapping ArgoCD Root App-of-Apps...$(RESET)"
-	kubectl apply -f $(GITOPS_DIR)/bootstrap/root-application.yaml
-
-.PHONY: verify-stage5
-verify-stage5: ## Run automated verification checks on Stage 5 GitOps and Workloads
-	@echo -e "$(GREEN)===> Running Stage 5 verification test suite...$(RESET)"
-	@python3 $(SCRIPTS_DIR)/verify_stage5.py
-
-.PHONY: test-m4
-test-m4: ## Execute full Milestone 4 validation and verification test suite
-	@echo -e "$(GREEN)===> Running Milestone 4 Test Suite...$(RESET)"
-	@$(MAKE) verify-stage5
-
 
 ##@ 🧹 Code Quality, Linting & Pre-commit
 

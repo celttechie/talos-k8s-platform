@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Verification Test Suite - Stage 2: Talos Downstream Cluster
+Verification Test Suite - Stage 1: Talos Downstream Cluster
 Validates Talos VM domain states, disk geometry (Longhorn secondary storage), and network reachability.
 """
 
@@ -17,18 +17,18 @@ from common import (
 
 
 def main():
-    reporter = TestReporter("Stage 2: Talos Downstream Cluster Automated Verification Suite")
+    reporter = TestReporter("Stage 1: Talos Downstream Cluster Automated Verification Suite")
 
-    outputs = get_terraform_outputs("02-talos-cluster")
+    outputs = get_terraform_outputs("01-talos-cluster")
     if not outputs:
-        print(f"{YELLOW}⚠️  Stage 2 Terraform state not found or uninitialized.{RESET}")
+        print(f"{YELLOW}⚠️  Stage 1 Terraform state not found or uninitialized.{RESET}")
         print(f"{YELLOW}   Running offline static contract verification.{RESET}\n")
 
         reporter.record("Control Plane Node Definition", True, "talos-cp-01 (2 vCPU, 2GB RAM, 20GB OS)")
         reporter.record("Worker Node 01 Definition", True, "talos-worker-01 (2 vCPU, 3GB RAM, 20GB OS + 30GB Longhorn disk)")
         reporter.record("Worker Node 02 Definition", True, "talos-worker-02 (2 vCPU, 3GB RAM, 20GB OS + 30GB Longhorn disk)")
         reporter.record("Base Talos OS Image Registry", True, "Talos v1.8.1 nocloud image configuration valid")
-        return reporter.summary("Stage 2 code verification complete.", "Stage 2 code verification failed.")
+        return reporter.summary("Stage 1 code verification complete.", "Stage 1 code verification failed.")
 
     cp = outputs.get("controlplane_nodes", {}).get("value", {})
     workers = outputs.get("worker_nodes", {}).get("value", {})
@@ -62,7 +62,7 @@ def main():
         else:
             reporter.record(f"{w_name} IP Lease", False, "IP address pending or not resolved")
 
-    return reporter.summary("Stage 2 Verification Succeeded: All Talos VMs online with proper storage mapping!", "Stage 2 Verification Failed: Some node checks did not pass.")
+    return reporter.summary("Stage 1 Verification Succeeded: All Talos VMs online with proper storage mapping!", "Stage 1 Verification Failed: Some node checks did not pass.")
 
 
 if __name__ == "__main__":

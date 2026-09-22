@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Verification Test Suite - Stage 4: Networking (Cilium eBPF) & Dynamic Storage (Longhorn CSI)
+Verification Test Suite - Stage 3: Networking (Cilium eBPF) & Dynamic Storage (Longhorn CSI)
 Validates Cilium eBPF datapath, Hubble UI, L2 announcement policies, and Longhorn dynamic PVC replication.
 """
 
@@ -26,7 +26,7 @@ KUBECONFIG = os.path.join(REPO_ROOT, "kubeconfig")
 
 
 def main():
-    reporter = TestReporter("Stage 4: Networking (Cilium eBPF) & Storage (Longhorn CSI) Verification")
+    reporter = TestReporter("Stage 3: Networking (Cilium eBPF) & Storage (Longhorn CSI) Verification")
 
     # 1. Static Contract & Manifest Validation
     for name, path in [
@@ -86,7 +86,7 @@ def main():
     else:
         reporter.record("Live Cluster Services Verification", True, "Static configuration and declarative manifests verified")
 
-    return reporter.summary("Stage 4 Verification Succeeded: All Cilium eBPF and Longhorn CSI configurations verified!", "Stage 4 Verification Failed: One or more checks failed.")
+    return reporter.summary("Stage 3 Verification Succeeded: All Cilium eBPF and Longhorn CSI configurations verified!", "Stage 3 Verification Failed: One or more checks failed.")
 
 
 if __name__ == "__main__":

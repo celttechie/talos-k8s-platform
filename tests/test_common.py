@@ -71,7 +71,7 @@ TARGET_POOL=default
     @patch.dict(os.environ, {}, clear=True)
     def test_get_target_host_from_tfvars(self):
         """get_target_host parses host from libvirt_uri in terraform.tfvars."""
-        tf_dir = os.path.join(self.temp_dir.name, "terraform", "environments", "02-talos-cluster")
+        tf_dir = os.path.join(self.temp_dir.name, "terraform", "environments", "01-talos-cluster")
         os.makedirs(tf_dir, exist_ok=True)
         with open(os.path.join(tf_dir, "terraform.tfvars"), "w") as f:
             f.write('libvirt_uri = "qemu+ssh://deployer@10.20.30.40/system"\n')
