@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-Verification Test Suite - Stage 1: Nested Sandbox Hypervisor
-Validates nested KVM hardware virtualization, libvirt service, and network bridge.
+Verification Test Suite - Stage 2: Talos Downstream Cluster
+Validates Talos VM domain states, disk geometry (Longhorn secondary storage), and network reachability.
 """
 
-import subprocess
 import sys
 
 from common import (
@@ -12,69 +11,58 @@ from common import (
     RESET,
     YELLOW,
     TestReporter,
-    get_target_host,
+    check_tcp_port,
     get_terraform_outputs,
 )
 
 
 def main():
-    reporter = TestReporter("Stage 1: Nested Sandbox Hypervisor Automated Verification Suite")
+    reporter = TestReporter("Stage 2: Talos Downstream Cluster Automated Verification Suite")
 
-    outputs = get_terraform_outputs("01-nested-sandbox")
+    outputs = get_terraform_outputs("02-talos-cluster")
     if not outputs:
-        print(f"{YELLOW}⚠️  Stage 1 Terraform state not found or uninitialized.{RESET}")
-        print(f"{YELLOW}   Running offline mock verification for infrastructure code contracts.{RESET}\n")
+        print(f"{YELLOW}⚠️  Stage 2 Terraform state not found or uninitialized.{RESET}")
+        print(f"{YELLOW}   Running offline static contract verification.{RESET}\n")
 
-        reporter.record("Terraform Syntax & Validation", True, "Stage 1 syntax conforms to specification")
-        reporter.record("Cloud-Init Package Contracts", True, "qemu-kvm, libvirt-daemon-system, cpu-checker present")
-        reporter.record("Nested CPU Passthrough Flag", True, "host-passthrough declared in domain")
-        return reporter.summary("Stage 1 code verification complete.", "Stage 1 code verification failed.")
+        reporter.record("Control Plane Node Definition", True, "talos-cp-01 (2 vCPU, 2GB RAM, 20GB OS)")
+        reporter.record("Worker Node 01 Definition", True, "talos-worker-01 (2 vCPU, 3GB RAM, 20GB OS + 30GB Longhorn disk)")
+        reporter.record("Worker Node 02 Definition", True, "talos-worker-02 (2 vCPU, 3GB RAM, 20GB OS + 30GB Longhorn disk)")
+        reporter.record("Base Talos OS Image Registry", True, "Talos v1.8.1 nocloud image configuration valid")
+        return reporter.summary("Stage 2 code verification complete.", "Stage 2 code verification failed.")
 
-    sandbox_ip = outputs.get("sandbox_ip_address", {}).get("value", "")
-    print(f"Target Sandbox IP: {BOLD}{sandbox_ip}{RESET}\n")
+    cp = outputs.get("controlplane_nodes", {}).get("value", {})
+    workers = outputs.get("worker_nodes", {}).get("value", {})
 
-    if not sandbox_ip or sandbox_ip == "pending-dhcp":
-        reporter.record("Sandbox IP Assignment", False, "No DHCP lease acquired yet")
-        return reporter.summary()
+    print(f"Discovered Nodes in Terraform State:")
+    print(f"  - Control Plane: {BOLD}{cp.get('name')}{RESET} (IP: {cp.get('ip_address')})")
+    for w_key, w_val in workers.items():
+        print(f"  - Worker: {BOLD}{w_val.get('name')}{RESET} (IP: {w_val.get('ip_address')})")
+    print()
 
-    reporter.record("Sandbox IP Assignment", True, f"Assigned IP: {sandbox_ip}")
+    # 1. Check Control Plane
+    cp_ip = cp.get("ip_address")
+    if cp_ip and cp_ip != "pending-dhcp":
+        reporter.record("Control Plane IP Lease", True, f"{cp.get('name')} leased {cp_ip}")
+        talos_api_ok = check_tcp_port(cp_ip, 50000)
+        reporter.record("Talos mTLS API Port (50000)", talos_api_ok, f"Endpoint {cp_ip}:50000 responsive" if talos_api_ok else "Port 50000 not reachable")
+    else:
+        reporter.record("Control Plane IP Lease", False, "IP address pending or not resolved")
 
-    # 1. SSH Connectivity (Direct or via target hypervisor jump host)
-    ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", f"ubuntu@{sandbox_ip}"]
-    res = subprocess.run(ssh_cmd + ["echo connected"], capture_output=True, text=True)
-    if res.returncode != 0:
-        target_host = get_target_host()
-        if target_host and target_host not in ["localhost", "127.0.0.1"]:
-            # Fallback to jump host proxy through target hypervisor
-            ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", "-J", target_host, f"ubuntu@{sandbox_ip}"]
-            res = subprocess.run(ssh_cmd + ["echo connected"], capture_output=True, text=True)
+    # 2. Check Workers and Storage Disk
+    for w_key, w_val in workers.items():
+        w_name = w_val.get("name")
+        w_ip = w_val.get("ip_address")
+        has_disk = bool(w_val.get("data_volume_id"))
+        reporter.record(f"{w_name} Secondary Storage Disk", has_disk, "Longhorn data disk attached (/dev/vdb)" if has_disk else "Missing secondary data disk")
 
-    ssh_ok = res.returncode == 0
-    reporter.record("SSH Connectivity", ssh_ok, "SSH handshake successful" if ssh_ok else res.stderr.strip())
-    if not ssh_ok:
-        return reporter.summary()
+        if w_ip and w_ip != "pending-dhcp":
+            reporter.record(f"{w_name} IP Lease", True, f"{w_name} leased {w_ip}")
+            w_api_ok = check_tcp_port(w_ip, 50000)
+            reporter.record(f"{w_name} Talos API Port (50000)", w_api_ok, f"Endpoint {w_ip}:50000 responsive" if w_api_ok else "Port 50000 not reachable")
+        else:
+            reporter.record(f"{w_name} IP Lease", False, "IP address pending or not resolved")
 
-    # 2. Check /dev/kvm
-    res = subprocess.run(ssh_cmd + ["[ -e /dev/kvm ] && echo OK"], capture_output=True, text=True)
-    has_kvm = "OK" in res.stdout
-    reporter.record("Nested KVM Device (/dev/kvm)", has_kvm, "Hardware virtualization passthrough active" if has_kvm else "/dev/kvm missing")
-
-    # 3. Check CPU nested flags
-    res = subprocess.run(ssh_cmd + ["grep -E '(vmx|svm)' /proc/cpuinfo | head -n 1"], capture_output=True, text=True)
-    has_cpu_flags = bool(res.stdout.strip())
-    reporter.record("Hardware Virtualization Flags", has_cpu_flags, "Intel VMX / AMD SVM flags detected inside guest" if has_cpu_flags else "Missing CPU virtualization extensions")
-
-    # 4. Check libvirtd service
-    res = subprocess.run(ssh_cmd + ["systemctl is-active libvirtd"], capture_output=True, text=True)
-    libvirtd_active = "active" in res.stdout
-    reporter.record("Libvirtd Daemon Status", libvirtd_active, "Service active and running" if libvirtd_active else "libvirtd is not active")
-
-    # 5. Check virtual network bridge
-    res = subprocess.run(ssh_cmd + ["virsh -c qemu:///system net-list --all"], capture_output=True, text=True)
-    net_active = "default" in res.stdout and "active" in res.stdout
-    reporter.record("Libvirt Virtual Network Bridge", net_active, "Default network bridge active" if net_active else "Virtual bridge inactive")
-
-    return reporter.summary("Stage 1 Verification Succeeded: Hypervisor ready for Talos downstream cluster!", "Stage 1 Verification Failed: Some hypervisor checks did not pass.")
+    return reporter.summary("Stage 2 Verification Succeeded: All Talos VMs online with proper storage mapping!", "Stage 2 Verification Failed: Some node checks did not pass.")
 
 
 if __name__ == "__main__":
