@@ -31,22 +31,22 @@ make preflight
 
 ---
 
-### Step 2: Provision Virtual Infrastructure (Stages 1 & 2)
+### Step 2: Provision Virtual Infrastructure (Stages 0 & 1)
 ```bash
-# Provision Stage 1: Nested Sandbox Hypervisor (L1 VM)
+# Provision Stage 0: Nested Sandbox Hypervisor (L1 VM) - Optional if target hypervisor exists
+make stage0-init
+make stage0-apply
+make verify-stage0
+
+# Provision Stage 1: Downstream Talos Nodes (L2 VMs)
 make stage1-init
 make stage1-apply
 make verify-stage1
-
-# Provision Stage 2: Downstream Talos Nodes (L2 VMs)
-make stage2-init
-make stage2-apply
-make verify-stage2
 ```
 
 ---
 
-### Step 3: Bootstrap Talos OS & Kubernetes Control Plane
+### Step 3: Bootstrap Talos OS & Kubernetes Control Plane (Stage 2)
 ```bash
 # 1. Generate declarative machine configs with Cilium & Longhorn patches
 make talos-gen-config
@@ -62,12 +62,12 @@ make talos-kubeconfig
 
 # 5. Audit control plane health
 make talos-health
-make verify-stage3
+make verify-stage2
 ```
 
 ---
 
-### Step 4: Deploy Platform Services (Cilium CNI & Longhorn CSI)
+### Step 4: Deploy Platform Services (Cilium CNI & Longhorn CSI) (Stage 3)
 ```bash
 # 1. Deploy Cilium eBPF CNI with L2 Announcement policy & Hubble
 make cilium-install
@@ -76,22 +76,20 @@ make cilium-install
 make longhorn-install
 
 # 3. Verify networking and storage readiness
-make verify-stage4
+make verify-stage3
 ```
 
 ---
 
-### Step 5: Deploy Communicating Workloads & Observability
+### Step 5: Deploy Communicating Workloads (Stage 4) & Observability (Stage 5)
 ```bash
 # 1. Deploy communicating microservices (frontend <-> order-api <-> redis <-> postgres)
 make workload-install
+make verify-stage4
 
 # 2. Deploy Prometheus Operator, Alertmanager & Grafana Dashboards
 make monitoring-install
-
-# 3. Verify GitOps and observability stack
 make verify-stage5
-make verify-stage6
 ```
 
 ---
