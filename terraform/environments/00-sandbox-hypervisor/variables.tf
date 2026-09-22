@@ -13,7 +13,7 @@ variable "vm_name" {
 variable "memory_mb" {
   description = "Memory allocation in megabytes for the sandbox hypervisor."
   type        = number
-  default     = 12288 # 12 GB
+  default     = 24576 # 24 GB
 }
 
 variable "vcpu_count" {
